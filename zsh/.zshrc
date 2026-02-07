@@ -4,6 +4,9 @@ DISABLE_AUTO_TITLE="true"
 # Core oh-my-zsh setup
 export ZSH="$HOME/.oh-my-zsh"
 
+# zsh-opencode-tab configuration (must be set before plugins load)
+export Z_OC_TAB_OPENCODE_MODEL="anthropic/claude-haiku-4-5"
+
 # Plugins
 plugins=(
   git
@@ -19,10 +22,11 @@ plugins=(
   zsh-autosuggestions
   zsh-syntax-highlighting
   fzf-tab                        # Better tab completion with fzf
+  zsh-opencode-tab               # AI-powered command generation (# comment<TAB>)
 )
-
 # PATH exports
 export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/.local/nvim/bin:$PATH"
 
 # FZF setup - auto-detect installation path
 if [ -d "/opt/homebrew/opt/fzf" ]; then
@@ -141,10 +145,8 @@ source "$HOME/dotfiles/shell/functions/fuzzy-nvim.zsh"
 setopt globdots
 zstyle ':completion:*' special-dirs false
 
-# Oh-My-Posh prompt
-if command -v oh-my-posh >/dev/null 2>&1; then
-  eval "$(oh-my-posh init zsh --config ~/.config/oh-my-posh/config.json)"
-fi
+# Starship prompt
+eval "$(starship init zsh)"
 
 # Set tab title to hostname: folder
 precmd() {
@@ -156,3 +158,13 @@ precmd() {
 
 # Default file permissions
 umask 002
+
+# opencode
+export PATH=/home/hugo/.opencode/bin:$PATH
+
+# bun completions
+[ -s "/home/hugo/.bun/_bun" ] && source "/home/hugo/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"

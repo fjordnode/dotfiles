@@ -1,6 +1,6 @@
 [user]
-	name = fjordnode
-	email = fjordnode@users.noreply.github.com
+	name = valfar
+	email = homelab@furusato.dev
 [init]
     defaultBranch = main
 [core]
@@ -16,3 +16,6 @@
 [credential "https://gist.github.com"]
 	helper =
 	helper = !/usr/bin/env gh auth git-credential
+[safe]
+	directory = /mnt/cache/appdata/komodo/repos/homelab-compose
+	directory = /mnt/cache/projects/gridhub
