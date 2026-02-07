@@ -2,11 +2,11 @@
 # dotfiles bootstrap: fresh Linux/macOS => apply my configs
 set -Eeuo pipefail
 
-REPO="${REPO:-https://github.com/Deepseek1/dotfiles.git}"
+REPO="${REPO:-https://github.com/fjordnode/dotfiles.git}"
 DEST="${DEST:-$HOME/dotfiles}"
 
 # Flags you can override
-INSTALL_OHMYPOSH="${INSTALL_OHMYPOSH:-1}"
+INSTALL_STARSHIP="${INSTALL_STARSHIP:-1}"
 INSTALL_OMZ="${INSTALL_OMZ:-1}"
 SET_DEFAULT_SHELL="${SET_DEFAULT_SHELL:-1}"
 FULL_INSTALL="${FULL_INSTALL:-1}"
@@ -130,11 +130,11 @@ else
   git -C "$DEST" pull --ff-only
 fi
 
-# 4) Apply dotfiles with stow BEFORE installing oh-my-zsh
+# 3) Apply dotfiles with stow BEFORE installing oh-my-zsh
 # This ensures OUR configs are in place first
 cd "$DEST"
 PKGS=""
-for d in zsh tmux git nvim shell shell-scripts kitty oh-my-posh eza bat claude; do 
+for d in zsh tmux git nvim shell shell-scripts kitty starship eza bat; do
   if [ -d "$d" ]; then
     PKGS="$PKGS $d"
   fi
@@ -153,7 +153,7 @@ else
   say "No stow packages found. Check your dotfiles structure."
 fi
 
-# 5) NOW install oh-my-zsh (AFTER stowing, so it sees our .zshrc exists)
+# 4) NOW install oh-my-zsh (AFTER stowing, so it sees our .zshrc exists)
 if [ "$INSTALL_OMZ" = 1 ]; then
   if [ ! -d "$HOME/.oh-my-zsh" ]; then
     say "Installing Oh My Zsh..."
@@ -171,53 +171,41 @@ if [ "$INSTALL_OMZ" = 1 ]; then
     git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
   [ ! -d "$ZSH_CUSTOM/plugins/fzf-tab" ] && \
     git clone https://github.com/Aloxaf/fzf-tab "$ZSH_CUSTOM/plugins/fzf-tab"
+  [ ! -d "$ZSH_CUSTOM/plugins/zsh-opencode-tab" ] && \
+    git clone https://github.com/alberti42/zsh-opencode-tab "$ZSH_CUSTOM/plugins/zsh-opencode-tab"
 fi
 
-# 6) Install oh-my-posh - handles root, sudo, non-sudo, and macOS cases
-if [ "$INSTALL_OHMYPOSH" = 1 ] && ! command -v oh-my-posh >/dev/null 2>&1; then
-  say "Installing oh-my-posh..."
-  
+# 5) Install Starship prompt
+if [ "$INSTALL_STARSHIP" = 1 ] && ! command -v starship >/dev/null 2>&1; then
+  say "Installing Starship..."
+
   if [ "$OS" = "macos" ]; then
-    # On macOS, use Homebrew
-    brew install jandedobbeleer/oh-my-posh/oh-my-posh
-  elif [ "$EUID" -eq 0 ]; then
-    # Running as root (like in Docker containers)
-    # Install directly without sudo
-    curl -s https://ohmyposh.dev/install.sh | bash -s -- -d /usr/local/bin
+    brew install starship
   else
-    # Install to user directory (preferred for regular users)
-    say "Installing oh-my-posh to ~/.local/bin"
-    mkdir -p "$HOME/.local/bin"
-    curl -s https://ohmyposh.dev/install.sh | bash -s -- -d "$HOME/.local/bin"
-    
-    # Add to PATH if not already there
-    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-      export PATH="$HOME/.local/bin:$PATH"
-      say "Added ~/.local/bin to PATH"
-    fi
+    curl -sS https://starship.rs/install.sh | sh -s -- -y
   fi
 fi
 
-# 7) Install Neovim plugins
+# 6) Install Neovim plugins
 if command -v nvim >/dev/null 2>&1 && [ -d "$HOME/.config/nvim" ]; then
   say "Installing Neovim plugins..."
   nvim --headless "+Lazy! sync" +qa 2>/dev/null || true
 fi
 
-# 7.1) Install TPM (Tmux Plugin Manager)
+# 7) Install TPM (Tmux Plugin Manager)
 if command -v tmux >/dev/null 2>&1 && [ ! -d "$HOME/.config/tmux/plugins/tpm" ]; then
   say "Installing TPM (Tmux Plugin Manager)..."
   mkdir -p "$HOME/.config/tmux/plugins"
   git clone https://github.com/tmux-plugins/tpm "$HOME/.config/tmux/plugins/tpm"
 fi
 
-# 7.2) Build bat theme cache
+# 8) Build bat theme cache
 if command -v bat >/dev/null 2>&1 && [ -d "$HOME/.config/bat/themes" ]; then
   say "Building bat theme cache..."
   bat cache --build >/dev/null 2>&1 || true
 fi
 
-# 8) Make zsh the default shell - skip if root or in container
+# 9) Make zsh the default shell - skip if root or in container
 if [ "$SET_DEFAULT_SHELL" = 1 ] && [ "$EUID" -ne 0 ] && [ "$SHELL" != "$(command -v zsh)" ]; then
   if [ "$OS" = "macos" ]; then
     # On macOS, add Homebrew's zsh to allowed shells if needed
