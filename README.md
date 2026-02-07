@@ -5,7 +5,7 @@ Personal development environment configuration files managed with GNU Stow.
 ## Quick Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Deepseek1/dotfiles/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/fjordnode/dotfiles/main/bootstrap.sh | bash
 ```
 
 ### Termux (Android)
@@ -13,7 +13,7 @@ curl -fsSL https://raw.githubusercontent.com/Deepseek1/dotfiles/main/bootstrap.s
 For Termux on Android devices:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Deepseek1/dotfiles/main/bootstrap-android.sh | bash
+curl -fsSL https://raw.githubusercontent.com/fjordnode/dotfiles/main/bootstrap-android.sh | bash
 ```
 
 This will:
@@ -22,7 +22,7 @@ This will:
 - Clone this repository to `~/dotfiles`
 - Create symlinks using GNU Stow
 - Install oh-my-zsh with plugins (autosuggestions, syntax-highlighting, completions)
-- Install oh-my-posh prompt
+- Install Starship prompt
 - Create zsh launcher script (since `chsh` is not available)
 - Configure Termux-specific optimizations
 
@@ -34,7 +34,7 @@ If you prefer to see what's happening:
 
 ```bash
 # Download the bootstrap script
-curl -fsSL https://raw.githubusercontent.com/Deepseek1/dotfiles/main/bootstrap.sh > bootstrap.sh
+curl -fsSL https://raw.githubusercontent.com/fjordnode/dotfiles/main/bootstrap.sh > bootstrap.sh
 
 # Review it
 cat bootstrap.sh
@@ -47,7 +47,7 @@ bash bootstrap.sh
 
 ```bash
 # Download the Termux bootstrap script
-curl -fsSL https://raw.githubusercontent.com/Deepseek1/dotfiles/main/bootstrap-android.sh > bootstrap-android.sh
+curl -fsSL https://raw.githubusercontent.com/fjordnode/dotfiles/main/bootstrap-android.sh > bootstrap-android.sh
 
 # Review it
 cat bootstrap-android.sh
@@ -108,7 +108,7 @@ To update your dotfiles on another machine:
 ```bash
 cd ~/dotfiles
 git pull
-stow -R -t "$HOME" zsh tmux git nvim shell kitty oh-my-posh eza
+stow -R -t "$HOME" zsh tmux git nvim shell kitty starship eza
 ```
 
 ## Customization
@@ -157,7 +157,7 @@ If stow reports conflicts, remove the existing files first:
 ```bash
 rm ~/.zshrc ~/.tmux.conf  # etc
 cd ~/dotfiles
-stow -t "$HOME" zsh tmux git nvim shell kitty oh-my-posh eza
+stow -t "$HOME" zsh tmux git nvim shell kitty starship eza
 ```
 
 ### Missing Plugins
