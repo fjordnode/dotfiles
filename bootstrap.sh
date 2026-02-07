@@ -134,7 +134,7 @@ fi
 # This ensures OUR configs are in place first
 cd "$DEST"
 PKGS=""
-for d in zsh tmux git nvim shell shell-scripts kitty starship eza bat; do
+for d in zsh tmux git nvim shell shell-scripts kitty starship eza bat opencode; do
   if [ -d "$d" ]; then
     PKGS="$PKGS $d"
   fi
@@ -158,21 +158,21 @@ if [ "$INSTALL_OMZ" = 1 ]; then
   if [ ! -d "$HOME/.oh-my-zsh" ]; then
     say "Installing Oh My Zsh..."
     # Just clone it, don't run the installer (which would overwrite .zshrc)
-    git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh"
+    git clone --quiet --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh"
   fi
-  
+
   # Install custom plugins if missing
   ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
   [ ! -d "$ZSH_CUSTOM/plugins/zsh-completions" ] && \
-    git clone https://github.com/zsh-users/zsh-completions "$ZSH_CUSTOM/plugins/zsh-completions"
+    git clone --quiet https://github.com/zsh-users/zsh-completions "$ZSH_CUSTOM/plugins/zsh-completions"
   [ ! -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ] && \
-    git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+    git clone --quiet https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
   [ ! -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ] && \
-    git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+    git clone --quiet https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
   [ ! -d "$ZSH_CUSTOM/plugins/fzf-tab" ] && \
-    git clone https://github.com/Aloxaf/fzf-tab "$ZSH_CUSTOM/plugins/fzf-tab"
+    git clone --quiet https://github.com/Aloxaf/fzf-tab "$ZSH_CUSTOM/plugins/fzf-tab"
   [ ! -d "$ZSH_CUSTOM/plugins/zsh-opencode-tab" ] && \
-    git clone https://github.com/alberti42/zsh-opencode-tab "$ZSH_CUSTOM/plugins/zsh-opencode-tab"
+    git clone --quiet https://github.com/alberti42/zsh-opencode-tab "$ZSH_CUSTOM/plugins/zsh-opencode-tab"
 fi
 
 # 5) Install Starship prompt
