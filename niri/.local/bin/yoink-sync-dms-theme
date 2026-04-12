@@ -1,0 +1,25 @@
+#!/bin/bash
+# Converts DMS kitty theme (dank-theme.conf) to yoink's theme.toml format
+SRC="$HOME/.config/kitty/dank-theme.conf"
+DEST="$HOME/.config/yoink/theme.toml"
+
+[ -f "$SRC" ] || { echo "No dank-theme.conf found"; exit 1; }
+
+{
+    # Extract accent from color6 (DMS primary)
+    accent=$(grep '^color6 ' "$SRC" | awk '{print $2}')
+    echo "accent = \"$accent\""
+
+    # Map kitty keys to yoink theme.toml
+    while IFS= read -r line; do
+        [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+        [[ "$line" =~ ^# ]] && continue
+        key=$(echo "$line" | awk '{print $1}')
+        val=$(echo "$line" | awk '{print $2}')
+        case "$key" in
+            cursor|foreground|background|selection_foreground|selection_background|color[0-9]|color1[0-5])
+                echo "$key = \"$val\""
+                ;;
+        esac
+    done < "$SRC"
+} > "$DEST"

@@ -1,0 +1,51 @@
+#!/bin/sh
+# Caffeine toggle for DMS — keep screen awake for a set duration
+# Uses gum for TUI picker, dms ipc inhibit for control
+
+STATEFILE="/tmp/caffeine-timer-pid"
+
+# Kill any existing timer
+if [ -f "$STATEFILE" ]; then
+    kill "$(cat "$STATEFILE")" 2>/dev/null
+    rm -f "$STATEFILE"
+fi
+
+# Get current status
+STATUS=$(dms ipc inhibit status 2>/dev/null)
+
+# Build menu with current state marker
+CHOICES="30 minutes
+1 hour
+2 hours
+4 hours
+Indefinitely
+Off"
+
+PICK=$(echo "$CHOICES" | gum choose --header "Caffeine — screen stays awake" --header.foreground 212)
+
+[ -z "$PICK" ] && exit 0
+
+case "$PICK" in
+    "Off")
+        dms ipc inhibit disable
+        dms ipc inhibit reason "Off"
+        ;;
+    "Indefinitely")
+        dms ipc inhibit enable
+        dms ipc inhibit reason "Indefinitely"
+        ;;
+    *)
+        # Parse minutes
+        case "$PICK" in
+            "30 minutes") MINS=30 ;;
+            "1 hour")     MINS=60 ;;
+            "2 hours")    MINS=120 ;;
+            "4 hours")    MINS=240 ;;
+        esac
+        dms ipc inhibit enable
+        dms ipc inhibit reason "$PICK"
+        # Schedule auto-disable in background
+        (sleep $((MINS * 60)) && dms ipc inhibit disable && dms ipc inhibit reason "Off" && rm -f "$STATEFILE") &
+        echo $! > "$STATEFILE"
+        ;;
+esac

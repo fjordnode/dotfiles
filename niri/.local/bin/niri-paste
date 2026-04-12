@@ -1,0 +1,8 @@
+#!/bin/bash
+app=$(niri msg -j focused-window 2>/dev/null | jq -r '.app_id // ""')
+case "$app" in
+    kitty|Alacritty|foot|com.mitchellh.ghostty|org.wezfurlong.wezterm)
+        wtype -M ctrl -M shift -k v ;;
+    *)
+        wtype -M ctrl -k v ;;
+esac

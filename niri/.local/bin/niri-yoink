@@ -1,0 +1,4 @@
+#!/bin/bash
+# Capture focused window BEFORE kitty steals focus
+eval "$(niri msg -j focused-window 2>/dev/null | jq -r '@sh "SRC_ID=\(.id) SRC_CLASS=\(.app_id)"')"
+exec kitty --app-id yoink -e yoink --source-id "$SRC_ID" --source-class "$SRC_CLASS"
