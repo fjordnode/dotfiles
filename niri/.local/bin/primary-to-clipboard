@@ -1,0 +1,26 @@
+#!/bin/bash
+# Copy primary selection to clipboard on change, debounced to avoid loops.
+# Only copies after selection stops changing for 300ms.
+
+last=""
+while true; do
+    text=$(wl-paste --primary --no-newline 2>/dev/null) || { sleep 0.5; continue; }
+    if [[ -n "$text" && "$text" != "$last" ]]; then
+        last="$text"
+        # Wait for selection to stabilize (user releases mouse)
+        sleep 0.3
+        current=$(wl-paste --primary --no-newline 2>/dev/null)
+        if [[ "$current" == "$last" ]]; then
+            app=$(niri msg -j focused-window 2>/dev/null | jq -r '.app_id // ""')
+            case "$app" in
+                kitty|com.mitchellh.ghostty|Alacritty|foot|org.wezfurlong.wezterm)
+                    wl-copy -- "$last" 2>/dev/null
+                    dms ipc call toast info "Copied to clipboard" 2>/dev/null
+                    ;;
+            esac
+        else
+            last="$current"
+        fi
+    fi
+    sleep 0.2
+done
