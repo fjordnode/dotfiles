@@ -1,0 +1,7 @@
+#!/bin/bash
+dir=~/Pictures/Screenshots
+before=$(ls -t "$dir"/Screenshot\ from\ *.png 2>/dev/null | head -1)
+niri msg action screenshot || exit 0
+sleep 0.3
+after=$(ls -t "$dir"/Screenshot\ from\ *.png 2>/dev/null | head -1)
+[ "$after" != "$before" ] && [ -n "$after" ] && satty --filename "$after" --copy-command wl-copy --output-filename "$after"

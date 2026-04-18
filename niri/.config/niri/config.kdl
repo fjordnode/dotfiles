@@ -150,7 +150,7 @@ spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
 spawn-at-startup "wl-paste" "--watch" "yoink-watcher"
 spawn-at-startup "yoink-sync-dms-theme"
 spawn-at-startup "dms" "run"
-spawn-at-startup "primary-to-clipboard"
+// spawn-at-startup "primary-to-clipboard"  // disabled 2026-04-18
 // Lid-closed shutdown is handled by the systemd user lid-shutdown.timer.
 // This line starts waybar, a commonly used bar for Wayland compositors.
 environment {
@@ -297,11 +297,10 @@ debug {
     honor-xdg-activation-with-invalid-serial
 }
 
-// Override to disable super+tab
 recent-windows {
     binds {
-        Alt+Tab         { next-window scope="output"; }
-        Alt+Shift+Tab   { previous-window scope="output"; }
+        Mod+Tab         { next-window scope="output"; }
+        Mod+Shift+Tab   { previous-window scope="output"; }
         Alt+grave       { next-window filter="app-id"; }
         Alt+Shift+grave { previous-window filter="app-id"; }
     }
@@ -320,15 +319,14 @@ include "dms/windowrules.kdl"
 binds {
     // --- System & Overview ---
     Mod+D repeat=false { toggle-overview; }
-    Mod+Tab repeat=false { toggle-overview; }
     Mod+Shift+Slash { show-hotkey-overlay; }
     Mod+Shift+E { quit; }
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 
     // --- Application Launchers ---
-    Mod+Return hotkey-overlay-title="Open Terminal" { spawn "ghostty"; }
-    Mod+B hotkey-overlay-title="Open Brave" {
-        spawn-sh "id=$(niri msg -j windows | jq -r '.[] | select(.app_id==\"brave-browser\") | .id' | head -1); if [ -n \"$id\" ]; then niri msg action focus-window --id $id; else brave-browser; fi";
+    Mod+Return hotkey-overlay-title="Open Terminal" { spawn "kitty"; }
+    Mod+B hotkey-overlay-title="Open Firefox" {
+        spawn-sh "id=$(niri msg -j windows | jq -r '.[] | select(.app_id | test(\"firefox$\")) | .id' | head -1); if [ -n \"$id\" ]; then niri msg action focus-window --id $id; else firefox; fi";
     }
     Mod+Shift+V hotkey-overlay-title="Yoink" { spawn "niri-yoink"; }
 
@@ -350,8 +348,8 @@ binds {
     Mod+Up    { focus-window-up; }
     Mod+Right { focus-column-right; }
     Mod+H     { focus-column-left; }
-    Mod+J     { focus-window-down; }
-    Mod+K     { focus-window-up; }
+    Mod+J     { focus-workspace-down; }
+    Mod+K     { focus-workspace-up; }
     Mod+L     { focus-column-right; }
 
     // --- Window Movement ---
@@ -360,8 +358,8 @@ binds {
     Mod+Shift+Up    { move-window-up; }
     Mod+Shift+Right { move-column-right; }
     Mod+Shift+H     { move-column-left; }
-    Mod+Shift+J     { move-window-down; }
-    Mod+Shift+K     { move-window-up; }
+    Mod+Shift+J     { move-workspace-down; }
+    Mod+Shift+K     { move-workspace-up; }
     Mod+Shift+L     { move-column-right; }
 
     // --- Column Navigation ---
@@ -374,8 +372,8 @@ binds {
     Mod+Ctrl+Left  { focus-monitor-left; }
     Mod+Ctrl+Right { focus-monitor-right; }
     Mod+Ctrl+H     { focus-monitor-left; }
-    Mod+Ctrl+J     { focus-monitor-down; }
-    Mod+Ctrl+K     { focus-monitor-up; }
+    Mod+Ctrl+J     { move-column-to-workspace-down; }
+    Mod+Ctrl+K     { move-column-to-workspace-up; }
     Mod+Ctrl+L     { focus-monitor-right; }
 
     // --- Move to Monitor ---
@@ -391,18 +389,18 @@ binds {
     // --- Workspace Navigation ---
     Mod+Page_Down      { focus-workspace-down; }
     Mod+Page_Up        { focus-workspace-up; }
-    Mod+U              { focus-workspace-down; }
-    Mod+I              { focus-workspace-up; }
+    Mod+U              { focus-window-down; }
+    Mod+I              { focus-window-up; }
     Mod+Ctrl+Down { move-column-to-workspace-down; }
     Mod+Ctrl+Up   { move-column-to-workspace-up; }
-    Mod+Ctrl+U         { move-column-to-workspace-down; }
-    Mod+Ctrl+I         { move-column-to-workspace-up; }
+    Mod+Ctrl+U         { move-window-down; }
+    Mod+Ctrl+I         { move-window-up; }
 
     // --- Move Workspaces ---
     Mod+Shift+Page_Down { move-workspace-down; }
     Mod+Shift+Page_Up   { move-workspace-up; }
-    Mod+Shift+U         { move-workspace-down; }
-    Mod+Shift+I         { move-workspace-up; }
+    Mod+Shift+U         { move-column-to-workspace-down; }
+    Mod+Shift+I         { move-column-to-workspace-up; }
 
     // --- Mouse Wheel Navigation ---
     Mod+WheelScrollDown      cooldown-ms=150 { focus-workspace-down; }
@@ -463,7 +461,7 @@ binds {
     XF86Launch1 { screenshot; }
     Ctrl+XF86Launch1 { screenshot-screen; }
     Alt+XF86Launch1 { screenshot-window; }
-    Mod+Shift+S { spawn-sh "grim -g \"$(slurp)\" - | satty --filename - --copy-command wl-copy --output-filename ~/Pictures/Screenshots/\"Screenshot from $(date '+%Y-%m-%d %H-%M-%S').png\""; }
+    Mod+Shift+S { spawn "niri-screenshot-satty"; }
     Mod+Shift+X { screenshot; }
 
     // --- Screen Recording ---

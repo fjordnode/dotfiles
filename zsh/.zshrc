@@ -51,7 +51,12 @@ export TERM=xterm-256color
 export LS_COLORS="$LS_COLORS:ow=01;36:tw=01;34:"
 export CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1
 
-# Aliases
+# Omarchy bash aliases and functions (tmux layouts, git shortcuts, etc.)
+export OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+source "$OMARCHY_PATH/default/bash/aliases"
+source "$OMARCHY_PATH/default/bash/functions"
+
+# Aliases (overrides omarchy defaults where needed)
 alias c='clear'
 alias ll='ls -lah --color=auto'
 alias la='ls -A'
@@ -92,10 +97,11 @@ tunnel-remove() {
 
 # Terminal cleanup - prevents garbage output after SSH disconnects
 cleanup_terminal() {
-  printf '\033[?1000l\033[?1002l\033[?1003l\033[?1006l'
+  printf '\033[?1000l\033[?1002l\033[?1003l\033[?1006l\033[?2004l'
   stty sane 2>/dev/null || true
 }
 trap cleanup_terminal EXIT TERM
+alias fixterm='cleanup_terminal; tput rmcup 2>/dev/null; reset'
 
 # fd/fdfind compatibility (Ubuntu/Debian use fdfind)
 if command -v fdfind >/dev/null 2>&1 && ! command -v fd >/dev/null 2>&1; then
@@ -148,6 +154,25 @@ zstyle ':completion:*' special-dirs false
 # Starship prompt
 eval "$(starship init zsh)"
 
+# Theme reload via FIFO — safe alternative to SIGUSR1 (won't kill tmux/TUIs)
+_theme_reload_setup() {
+  local fifo="/tmp/zsh-reload-$$"
+  [[ -p "$fifo" ]] || mkfifo "$fifo" 2>/dev/null
+  exec {_reload_fd}<>"$fifo"
+
+  _theme_reload_handler() {
+    local dummy
+    read -r dummy <&$_reload_fd 2>/dev/null
+    zle .reset-prompt
+    zle -R
+  }
+
+  zle -N _theme_reload_handler
+  zle -F $_reload_fd _theme_reload_handler
+  zshexit() { rm -f "/tmp/zsh-reload-$$" 2>/dev/null; }
+}
+_theme_reload_setup
+
 # Set tab title to hostname: folder
 precmd() {
   print -Pn "\e]0;%m: %1~\a"
@@ -161,6 +186,7 @@ umask 002
 
 # opencode
 export PATH=/home/hugo/.opencode/bin:$PATH
+export PATH="$HOME/.local/npm-global/bin:$PATH"
 
 # bun completions
 [ -s "/home/hugo/.bun/_bun" ] && source "/home/hugo/.bun/_bun"

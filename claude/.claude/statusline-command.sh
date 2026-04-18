@@ -90,7 +90,8 @@ if git -c core.useBuiltinFSMonitor=false rev-parse --git-dir > /dev/null 2>&1; t
         upstream_info=$(printf " \033[38;2;100;100;100m│\033[0m \033[38;2;137;180;250m↑%s\033[0m \033[38;2;250;179;135m↓%s\033[0m" "$ahead" "$behind")
     fi
 
-    git_info=$(printf " \033[38;2;100;100;100m│\033[0m \033[38;2;250;179;135m𖠰\033[0m \033[38;2;%sm%s\033[0m%b%b" "$git_color" "$branch" "$diff_info" "$upstream_info")
+    branch_icon=$'\ue0a0'
+    git_info=$(printf " \033[38;2;100;100;100m│\033[0m \033[38;2;250;179;135m%s\033[0m \033[38;2;%sm%s\033[0m%b%b" "$branch_icon" "$git_color" "$branch" "$diff_info" "$upstream_info")
 fi
 
 sep="\033[38;2;100;100;100m │\033[0m"

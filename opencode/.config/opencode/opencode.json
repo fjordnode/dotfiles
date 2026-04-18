@@ -33,7 +33,35 @@
       "/bin/rm": "ask",
       "/bin/rmdir": "ask",
       "mv *": "allow",
-      "mkdir *": "allow"
+      "mkdir *": "allow",
+      "ls": "allow",
+      "ls *": "allow",
+      "/bin/ls": "allow",
+      "/bin/ls *": "allow",
+      "cat": "allow",
+      "cat *": "allow",
+      "grep": "allow",
+      "grep *": "allow",
+      "rg": "allow",
+      "rg *": "allow",
+      "find": "allow",
+      "find *": "allow",
+      "head": "allow",
+      "head *": "allow",
+      "tail": "allow",
+      "tail *": "allow",
+      "wc": "allow",
+      "wc *": "allow",
+      "sort": "allow",
+      "sort *": "allow",
+      "uniq": "allow",
+      "uniq *": "allow",
+      "stat": "allow",
+      "stat *": "allow",
+      "pwd": "allow",
+      "which": "allow",
+      "tree": "allow",
+      "tree *": "allow"
     }
   },
   "plugin": [
@@ -46,6 +74,6 @@
     },
     "general": {
       "disable": true
-    },
+    }
   }
 }
