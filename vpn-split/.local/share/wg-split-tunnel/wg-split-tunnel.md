@@ -86,6 +86,10 @@ Four independent pieces:
    - A user-readable state file at `~/.local/state/wg-killswitch-active`
      mirrors whether the kill switch is installed so bar widgets can show
      status without needing `sudo`.
+   - The currently selected full-tunnel mode is tracked at
+     `/run/wg-split-tunnel/active-full-tunnel`, which lets dispatcher
+     refreshes resolve rare dual-up states deterministically without
+     falling back to "last up wins".
 
 ## Network setup
 
@@ -264,11 +268,19 @@ nmcli connection up wg-proton
   `novpn.slice` under `user.slice/user-UID.slice/user@UID.service/`.
 - **The cgroup dir must exist at rule-load time** — hence the anchor
   service. Without it, `nft -f` fails with "No such file or directory".
+- **The cgroup path is discovered dynamically** by globbing the live
+  `novpn.slice` under `/sys/fs/cgroup/user.slice/.../user@...service/`.
+  This avoids hardcoding UID `1000` and keeps the setup portable across
+  user IDs.
 - **`masquerade` is terminal in nft** — `counter` must come before it,
   `comment` cannot follow.
 - **Masquerade is required**, not optional — initial routing to wg-proton
   sets source to the WG tunnel IP; without SNAT the bypass packets go out
   with an unroutable source and replies never come back.
+- **`wg-split-down` intentionally omits the SNAT chain** when no full
+  tunnel is active. In that state, new `novpn` traffic is already routed
+  directly via the physical interface, so the kernel should pick the
+  correct source address without an extra masquerade pass.
 - **systemd-resolved uses `SO_BINDTODEVICE`** to pin DNS queries to the
   interface that advertised the DNS server. If `DNS = 10.10.0.1` is set
   on wg-proton, resolved sends queries via wg-proton (into the tunnel)
