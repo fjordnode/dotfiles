@@ -1,0 +1,9 @@
+#!/bin/bash
+if ip link show wg-proton up &>/dev/null; then
+    nmcli connection down wg-proton
+else
+    if ip link show wg-home up &>/dev/null; then
+        nmcli connection down wg-home
+    fi
+    nmcli connection up wg-proton
+fi

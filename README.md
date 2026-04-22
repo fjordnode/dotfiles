@@ -65,6 +65,7 @@ bash bootstrap-android.sh
 - **bat** - Syntax highlighting with Catppuccin themes
 - **starship** - Cross-shell prompt
 - **shell** - Additional shell utilities (rm-safety)
+- **vpn-split** - Linux-only WireGuard split tunneling, `novpn`, and kill-switch scripts
 
 ## Directory Structure
 
@@ -108,7 +109,7 @@ To update your dotfiles on another machine:
 ```bash
 cd ~/dotfiles
 git pull
-stow -R -t "$HOME" zsh tmux git nvim shell kitty starship eza
+stow -R -t "$HOME" zsh tmux git nvim shell kitty starship eza vpn-split
 ```
 
 ## Customization
@@ -149,6 +150,36 @@ git add vim
 git commit -m "Add vim configuration"
 ```
 
+### VPN Split Tunnel Package
+
+The `vpn-split` package is Linux-specific. It stows:
+
+- `~/.local/bin/novpn`
+- `~/.local/bin/wg-split-up`
+- `~/.local/bin/wg-split-down`
+- `~/.local/bin/wg-kill-switch-off`
+- `~/.local/bin/wg-status-proton`
+- `~/.local/bin/wg-status-home`
+- `~/.local/bin/wg-toggle-proton`
+- `~/.local/bin/wg-toggle-home`
+- `~/.config/systemd/user/novpn.slice`
+- `~/.config/systemd/user/novpn-anchor.service`
+- `~/.local/share/wg-split-tunnel/50-wg-split-tunnel`
+- `~/.local/share/wg-split-tunnel/wg-split-tunnel.md`
+
+Root-managed files still need a manual install step:
+
+```bash
+sudo install -m 755 ~/.local/share/wg-split-tunnel/50-wg-split-tunnel \
+  /etc/NetworkManager/dispatcher.d/50-wg-split-tunnel
+```
+
+You may also want to name table `26642` in `/etc/iproute2/rt_tables`:
+
+```bash
+echo '26642 novpn' | sudo tee -a /etc/iproute2/rt_tables
+```
+
 ## Troubleshooting
 
 ### Stow Conflicts
@@ -157,7 +188,7 @@ If stow reports conflicts, remove the existing files first:
 ```bash
 rm ~/.zshrc ~/.tmux.conf  # etc
 cd ~/dotfiles
-stow -t "$HOME" zsh tmux git nvim shell kitty starship eza
+stow -t "$HOME" zsh tmux git nvim shell kitty starship eza vpn-split
 ```
 
 ### Missing Plugins

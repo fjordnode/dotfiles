@@ -1,0 +1,149 @@
+#!/bin/bash
+set -euo pipefail
+
+MARK=0x6e76
+TABLE=26642
+FULL_TUNNELS=(wg-proton wg-home)
+
+iface_is_up() {
+    local iface="${1:-}"
+    [ -n "$iface" ] || return 1
+    ip link show "$iface" up &>/dev/null
+}
+
+configured_endpoint() {
+    local iface="${1:-}"
+    local endpoint=""
+    local profile="/etc/NetworkManager/system-connections/${iface}.nmconnection"
+
+    if iface_is_up "$iface"; then
+        endpoint=$(wg show "$iface" endpoints 2>/dev/null | awk 'NR==1 && $2 != "(none)" { print $2 }')
+    fi
+
+    if [ -z "$endpoint" ] && [ -r "$profile" ]; then
+        endpoint=$(awk -F= '/^endpoint=/{print $2; exit}' "$profile")
+    fi
+
+    printf '%s\n' "$endpoint"
+}
+
+endpoint_rule() {
+    local iface="${1:-}"
+    local endpoint="${2:-}"
+    local host="" port="" ip=""
+
+    [ -n "$endpoint" ] || return 0
+
+    if [[ "$endpoint" =~ ^\[([0-9A-Fa-f:]+)\]:([0-9]+)$ ]]; then
+        host="${BASH_REMATCH[1]}"
+        port="${BASH_REMATCH[2]}"
+        printf '        ip6 daddr %s udp dport %s counter accept comment "wg peer %s"\n' "$host" "$port" "$iface"
+        return 0
+    fi
+
+    if [[ "$endpoint" =~ ^([^:]+):([0-9]+)$ ]]; then
+        host="${BASH_REMATCH[1]}"
+        port="${BASH_REMATCH[2]}"
+    else
+        echo "wg-split-down: cannot parse endpoint for $iface: $endpoint" >&2
+        return 1
+    fi
+
+    if [[ "$host" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+        ip="$host"
+    else
+        ip=$(getent ahostsv4 "$host" 2>/dev/null | awk 'NR==1 { print $1 }')
+    fi
+
+    if [ -z "$ip" ]; then
+        echo "wg-split-down: cannot resolve endpoint host for $iface: $host" >&2
+        return 1
+    fi
+
+    printf '        ip daddr %s udp dport %s counter accept comment "wg peer %s"\n' "$ip" "$port" "$iface"
+}
+
+# Rebuild around any remaining full-tunnel interface so the kill-switch and
+# bypass state reflect the current mode cleanly.
+for iface in "${FULL_TUNNELS[@]}"; do
+    if iface_is_up "$iface"; then
+        /home/hugo/.local/bin/wg-split-up
+        echo "wg-split-down: $iface still up, refreshed split-tunnel state"
+        exit 0
+    fi
+done
+
+nft delete table inet split-tunnel 2>/dev/null || true
+ip rule del fwmark $MARK table $TABLE 2>/dev/null || true
+ip route flush table $TABLE 2>/dev/null || true
+
+ROUTE=$(ip route show table main default 2>/dev/null | head -1)
+if [ -z "$ROUTE" ]; then
+    echo "wg-split-down: no default route in main table; cannot rebuild kill switch" >&2
+    exit 1
+fi
+
+GATEWAY=$(echo "$ROUTE" | grep -oP 'via \K\S+')
+DEVICE=$(echo "$ROUTE" | grep -oP 'dev \K\S+')
+if [ -z "$GATEWAY" ] || [ -z "$DEVICE" ]; then
+    echo "wg-split-down: cannot parse gateway/device from route: $ROUTE" >&2
+    exit 1
+fi
+
+CGROUP_PATH="user.slice/user-1000.slice/user@1000.service/novpn.slice"
+if [ ! -d "/sys/fs/cgroup/$CGROUP_PATH" ]; then
+    echo "wg-split-down: novpn.slice cgroup not found (is novpn-anchor.service running?)" >&2
+    exit 1
+fi
+
+# Keep novpn working even when no full tunnel is up by preserving the cgroup
+# marking path and bypass table on the physical default route.
+while IFS= read -r route; do
+    ip route replace $route table $TABLE 2>/dev/null || true
+done < <(ip route show table main scope link)
+ip route replace default via "$GATEWAY" dev "$DEVICE" table $TABLE
+
+ip rule del fwmark $MARK table $TABLE 2>/dev/null || true
+ip rule add fwmark $MARK table $TABLE priority 100
+
+nft -f - <<EOF
+table inet split-tunnel {
+    chain mark-bypass {
+        type route hook output priority mangle; policy accept;
+        ct mark $MARK meta mark set ct mark counter comment "restore from connmark"
+        meta mark != $MARK socket cgroupv2 level 4 "$CGROUP_PATH" meta mark set $MARK counter comment "cgroup match"
+        meta mark $MARK ct mark set meta mark counter comment "save to connmark"
+    }
+    chain restore-inbound {
+        type filter hook prerouting priority mangle; policy accept;
+        ct mark $MARK meta mark set ct mark counter comment "restore inbound"
+    }
+}
+EOF
+
+WG_ENDPOINT_RULES=""
+declare -A seen_endpoints=()
+for iface in "${FULL_TUNNELS[@]}"; do
+    endpoint="$(configured_endpoint "$iface")"
+    [ -n "$endpoint" ] || continue
+    [ -n "${seen_endpoints[$endpoint]:-}" ] && continue
+    seen_endpoints["$endpoint"]=1
+    WG_ENDPOINT_RULES+="$(endpoint_rule "$iface" "$endpoint")"$'\n'
+done
+
+nft delete table inet kill-switch 2>/dev/null || true
+nft -f - <<EOF
+table inet kill-switch {
+    chain kill {
+        type filter hook output priority 0; policy accept;
+        oifname != "$DEVICE" counter accept comment "non-physical"
+        ip daddr 10.10.0.0/24 counter accept comment "LAN v4"
+        ip6 daddr fe80::/10 counter accept comment "v6 link-local"
+$WG_ENDPOINT_RULES
+        meta mark $MARK counter accept comment "novpn mark"
+        counter drop comment "kill"
+    }
+}
+EOF
+
+echo "wg-split-down: full-tunnel bypass removed; novpn bypass and kill switch left active on $DEVICE"

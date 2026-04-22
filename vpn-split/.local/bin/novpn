@@ -1,0 +1,8 @@
+#!/bin/bash
+if [ $# -eq 0 ]; then
+    echo "usage: novpn <command> [args...]" >&2
+    echo "Launches a command outside the VPN tunnel." >&2
+    exit 1
+fi
+
+exec systemd-run --user --slice=novpn.slice --scope --collect -q -- "$@"

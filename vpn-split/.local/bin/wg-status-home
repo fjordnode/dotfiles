@@ -1,0 +1,7 @@
+#!/bin/bash
+# Emit wg-h label, green if wg-home is up, gray otherwise
+if ip link show wg-home up &>/dev/null; then
+    echo '<font color="#a6e3a1">wg-h</font>'
+else
+    echo '<font color="#6c7086">wg-h</font>'
+fi

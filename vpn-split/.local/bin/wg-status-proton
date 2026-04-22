@@ -1,0 +1,7 @@
+#!/bin/bash
+# Emit wg-p label, green if wg-proton is up, gray otherwise
+if ip link show wg-proton up &>/dev/null; then
+    echo '<font color="#a6e3a1">wg-p</font>'
+else
+    echo '<font color="#6c7086">wg-p</font>'
+fi

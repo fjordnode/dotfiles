@@ -1,0 +1,5 @@
+#!/bin/bash
+# Disable the leak-prevention kill switch.
+# Run this if you want to browse without a VPN intentionally.
+# wg-split-up will reinstall it on next tunnel-up.
+nft delete table inet kill-switch 2>/dev/null && echo "kill switch disabled" || echo "kill switch was not active"

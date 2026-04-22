@@ -1,0 +1,28 @@
+#!/bin/bash
+IFACE="$1"
+ACTION="$2"
+
+any_wg_up() {
+    for iface in wg-proton wg-home; do
+        if ip link show "$iface" up &>/dev/null; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+case "$IFACE" in
+    wg*)
+        case "$ACTION" in
+            up)   /home/hugo/.local/bin/wg-split-up "$IFACE" ;;
+            down) /home/hugo/.local/bin/wg-split-down ;;
+        esac
+        ;;
+    wlp1s0f0)
+        # Gateway may have changed; refresh bypass if any WG is still active.
+        # No preferred interface here; wg-split-up will keep the active mode.
+        if [ "$ACTION" = "up" ] && any_wg_up; then
+            /home/hugo/.local/bin/wg-split-up
+        fi
+        ;;
+esac
