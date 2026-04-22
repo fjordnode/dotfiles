@@ -1,0 +1,12 @@
+#!/bin/bash
+set -euo pipefail
+
+if sudo -n nft list table inet kill-switch >/dev/null 2>&1; then
+    exec sudo -n /home/hugo/.local/bin/wg-kill-switch-off
+fi
+
+if ip link show wg-proton up &>/dev/null || ip link show wg-home up &>/dev/null; then
+    exec sudo -n /home/hugo/.local/bin/wg-split-up
+fi
+
+exec sudo -n /home/hugo/.local/bin/wg-split-down

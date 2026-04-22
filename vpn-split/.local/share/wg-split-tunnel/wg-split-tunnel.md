@@ -13,7 +13,7 @@ curl -4 ifconfig.me              # shows VPN IP
 novpn curl -4 ifconfig.me        # shows real IP
 novpn brave-browser              # launch any app outside the VPN
 
-# Toggle via DMS bar widgets (wg-p / wg-h), or CLI
+# Toggle via DMS bar widgets (wg-p / wg-h / ks), or CLI
 nmcli connection down wg-proton  # if kill switch is installed, non-novpn traffic is blocked
 nmcli connection up wg-proton    # back to normal
 
@@ -78,11 +78,14 @@ Four independent pieces:
      - non-physical interface (wg*, lo)
      - LAN destination (10.10.0.0/24)
      - IPv6 link-local
-     - WG-encapsulated (peer endpoint auto-detected via `wg show`)
-     - novpn mark (0x6e76)
+   - WG-encapsulated (peer endpoint auto-detected via `wg show`)
+   - novpn mark (0x6e76)
    - Separate table from split-tunnel — survives `wg-split-down`.
    - Peer endpoint whitelist is rebuilt each `wg-split-up` run, so
      switching Proton servers is fine.
+   - A user-readable state file at `~/.local/state/wg-killswitch-active`
+     mirrors whether the kill switch is installed so bar widgets can show
+     status without needing `sudo`.
 
 ## Network setup
 
@@ -123,8 +126,10 @@ Four independent pieces:
 | `~/.local/bin/wg-kill-switch-off` | Explicitly remove kill switch (sudo) |
 | `~/.local/bin/wg-status-proton` | Bar status script (outputs colored `wg-p`) |
 | `~/.local/bin/wg-status-home` | Bar status script (outputs colored `wg-h`) |
+| `~/.local/bin/wg-status-killswitch` | Bar status script (outputs colored `ks`) |
 | `~/.local/bin/wg-toggle-proton` | Click-to-toggle wg-proton |
 | `~/.local/bin/wg-toggle-home` | Click-to-toggle wg-home |
+| `~/.local/bin/wg-toggle-killswitch` | Click-to-toggle kill switch |
 | `~/.config/systemd/user/novpn.slice` | Systemd slice definition |
 | `~/.config/systemd/user/novpn-anchor.service` | Keeps the cgroup alive |
 | `/etc/NetworkManager/dispatcher.d/50-wg-split-tunnel` | Auto-run wg-split-up/down on WG state changes |
@@ -165,13 +170,37 @@ simplicity.
 
 ## DMS bar widgets
 
-`intervalCommand` plugin × 2 instances:
+`intervalCommand` plugin × 3 instances:
 
-- **wg-p**: command `wg-status-proton`, click `wg-toggle-proton`, 5s interval
-- **wg-h**: command `wg-status-home`, click `wg-toggle-home`, 5s interval
+- **wg-p**
+  - command: `~/.local/bin/wg-status-proton`
+  - click: `~/.local/bin/wg-toggle-proton`
+  - interval: `5s`
+  - status meaning: green `wg-p` when `wg-proton` is up, gray when down
+  - click behavior: if `wg-proton` is up, bring it down; otherwise bring
+    `wg-home` down first (if needed) and then bring `wg-proton` up
+- **wg-h**
+  - command: `~/.local/bin/wg-status-home`
+  - click: `~/.local/bin/wg-toggle-home`
+  - interval: `5s`
+  - status meaning: green `wg-h` when `wg-home` is up, gray when down
+  - click behavior: if `wg-home` is up, bring it down; otherwise bring
+    `wg-proton` down first (if needed) and then bring `wg-home` up
+- **ks**
+  - command: `~/.local/bin/wg-status-killswitch`
+  - click: `~/.local/bin/wg-toggle-killswitch`
+  - interval: `5s`
+  - status meaning: green `ks` when the kill switch is installed, gray when
+    it is not
+  - click behavior: if the kill switch is active, disable it with
+    `wg-kill-switch-off`; if a full tunnel is up, re-enable it with
+    `wg-split-up`; if no tunnel is up, re-enable it with `wg-split-down`
+    so the host returns to fail-closed + `novpn`-only mode
 
 The toggle helpers enforce the recommended separate-modes design: bringing
-up one full tunnel first brings the other down.
+up one full tunnel first brings the other down. The kill-switch widget reads
+`~/.local/state/wg-killswitch-active`, so it stays reliable even when the bar
+cannot run `sudo` for status checks.
 
 Status scripts emit `<font color="#a6e3a1">wg-p</font>` (green, Catppuccin)
 when the tunnel is up, `<font color="#6c7086">wg-p</font>` (gray) when
@@ -180,6 +209,19 @@ no plugin patching needed.
 
 Equivalent in Noctalia: the built-in `CustomButton` widget has
 `textCommand` + `leftClickExec` + `textIntervalMs` — no plugin install.
+Map the same pairs directly:
+
+- `wg-p`: `textCommand="~/.local/bin/wg-status-proton"`,
+  `leftClickExec="~/.local/bin/wg-toggle-proton"`,
+  `textIntervalMs=5000`
+- `wg-h`: `textCommand="~/.local/bin/wg-status-home"`,
+  `leftClickExec="~/.local/bin/wg-toggle-home"`,
+  `textIntervalMs=5000`
+- `ks`: `textCommand="~/.local/bin/wg-status-killswitch"`,
+  `leftClickExec="~/.local/bin/wg-toggle-killswitch"`,
+  `textIntervalMs=5000`
+
+These scripts are shell-agnostic and do not depend on DMS-specific features.
 
 ## Reserved namespace
 

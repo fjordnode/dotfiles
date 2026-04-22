@@ -160,8 +160,10 @@ The `vpn-split` package is Linux-specific. It stows:
 - `~/.local/bin/wg-kill-switch-off`
 - `~/.local/bin/wg-status-proton`
 - `~/.local/bin/wg-status-home`
+- `~/.local/bin/wg-status-killswitch`
 - `~/.local/bin/wg-toggle-proton`
 - `~/.local/bin/wg-toggle-home`
+- `~/.local/bin/wg-toggle-killswitch`
 - `~/.config/systemd/user/novpn.slice`
 - `~/.config/systemd/user/novpn-anchor.service`
 - `~/.local/share/wg-split-tunnel/50-wg-split-tunnel`

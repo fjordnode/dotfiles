@@ -2,4 +2,19 @@
 # Disable the leak-prevention kill switch.
 # Run this if you want to browse without a VPN intentionally.
 # wg-split-up will reinstall it on next tunnel-up.
-nft delete table inet kill-switch 2>/dev/null && echo "kill switch disabled" || echo "kill switch was not active"
+state_file() {
+    local state_home="$HOME/.local/state"
+    if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+        state_home="$(getent passwd "$SUDO_USER" | cut -d: -f6)/.local/state"
+    fi
+    printf '%s/wg-killswitch-active\n' "$state_home"
+}
+
+STATE_FILE="$(state_file)"
+if nft delete table inet kill-switch 2>/dev/null; then
+    rm -f "$STATE_FILE"
+    echo "kill switch disabled"
+else
+    rm -f "$STATE_FILE"
+    echo "kill switch was not active"
+fi

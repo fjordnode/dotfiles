@@ -5,6 +5,14 @@ MARK=0x6e76
 TABLE=26642
 FULL_TUNNELS=(wg-proton wg-home)
 
+state_file() {
+    local state_home="$HOME/.local/state"
+    if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+        state_home="$(getent passwd "$SUDO_USER" | cut -d: -f6)/.local/state"
+    fi
+    printf '%s/wg-killswitch-active\n' "$state_home"
+}
+
 iface_is_up() {
     local iface="${1:-}"
     [ -n "$iface" ] || return 1
@@ -145,5 +153,12 @@ $WG_ENDPOINT_RULES
     }
 }
 EOF
+
+STATE_FILE="$(state_file)"
+mkdir -p "$(dirname "$STATE_FILE")"
+: > "$STATE_FILE"
+if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+    chown "$SUDO_USER":"$SUDO_USER" "$STATE_FILE" 2>/dev/null || true
+fi
 
 echo "wg-split-down: full-tunnel bypass removed; novpn bypass and kill switch left active on $DEVICE"
