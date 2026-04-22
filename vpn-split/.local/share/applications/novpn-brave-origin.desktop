@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=novpn Brave Origin
+Comment=Brave Origin nightly in a dedicated no-VPN profile
+Exec=/home/hugo/.local/bin/novpn-brave-origin %U
+Icon=brave-origin-nightly
+Categories=Network;WebBrowser;
+Keywords=novpn;vpn;bypass;brave;origin;
+StartupWMClass=brave-origin-novpn

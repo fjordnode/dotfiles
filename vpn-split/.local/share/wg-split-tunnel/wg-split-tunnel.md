@@ -55,6 +55,9 @@ Four independent pieces:
    - `novpn-anchor.service` runs `sleep infinity` in the slice permanently.
      Required because nftables resolves the cgroup path to an inode at
      rule-load time — the directory has to exist.
+   - The scripts do **not** hardcode UID `1000` anymore. They discover the
+     live `novpn.slice` path by globbing under `/sys/fs/cgroup/user.slice/...`
+     so the setup keeps working if the user ID changes.
 
 2. **nftables packet marking** (`table inet split-tunnel`)
    - `output` chain, type `route`: if a socket's cgroup is `novpn.slice`,
@@ -125,6 +128,9 @@ Four independent pieces:
 | Path | Purpose |
 |------|---------|
 | `~/.local/bin/novpn` | Launch a command in novpn.slice |
+| `~/.local/lib/wg-split-lib.sh` | Shared helper library sourced by wg-split-up/down |
+| `~/.local/bin/novpn-brave-origin` | Launch Brave Origin nightly in a separate novpn-only profile |
+| `~/.local/share/applications/novpn-brave-origin.desktop` | Desktop entry for Walker/app launchers |
 | `~/.local/bin/wg-split-up` | Install full-tunnel mode state: novpn bypass + kill switch (sudo) |
 | `~/.local/bin/wg-split-down` | Remove full-tunnel state; keep novpn bypass + kill switch (sudo) |
 | `~/.local/bin/wg-kill-switch-off` | Explicitly remove kill switch (sudo) |
@@ -249,6 +255,7 @@ uses `wireguard.fwmark: 0x0`, so they are not active parts of this design.
 ```sh
 curl -4 ifconfig.me                   # VPN IP expected
 novpn curl -4 ifconfig.me             # real IP expected
+novpn-brave-origin                    # separate Brave instance outside the VPN
 resolvectl status                     # wg-proton should list no DNS; wg-home should list DNS 10.10.70.1
 ip rule show                          # priority 100: fwmark 0x6e76 → 26642
 ip route show table novpn             # default via real gateway

@@ -1,0 +1,8 @@
+#!/bin/bash
+set -euo pipefail
+
+exec /home/hugo/.local/bin/novpn \
+    /usr/bin/brave-origin-nightly \
+    --user-data-dir="${XDG_DATA_HOME:-$HOME/.local/share}/brave-origin-nightly-novpn" \
+    --class="brave-origin-novpn" \
+    "$@"
