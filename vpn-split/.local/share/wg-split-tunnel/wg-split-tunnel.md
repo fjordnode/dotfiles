@@ -160,7 +160,10 @@ If both full tunnels are brought up, `wg-split-up` only resolves the
 ambiguity when it is called with an explicit preferred interface (for
 example from the widget toggle path). In that case it keeps the requested
 tunnel and brings the other down. Without an explicit preference, dual-up
-state is treated as an error instead of silently picking a winner.
+state is treated as an error unless a previously selected mode is available
+from `/run/wg-split-tunnel/active-full-tunnel`, which allows dispatcher
+refreshes and teardown paths to stay deterministic without falling back to
+"last up wins".
 
 Alternative design: when remote, `wg-proton` can stay up as the internet
 tunnel while `wg-home` is reduced to a LAN-only tunnel (for example

@@ -20,7 +20,8 @@ case "$IFACE" in
         ;;
     wlp1s0f0)
         # Gateway may have changed; refresh bypass if any WG is still active.
-        # No preferred interface here; wg-split-up will keep the active mode.
+        # When multiple full tunnels are unexpectedly up, wg-split-up falls
+        # back to the saved preferred mode in /run/wg-split-tunnel.
         if [ "$ACTION" = "up" ] && any_wg_up; then
             /home/hugo/.local/bin/wg-split-up
         fi

@@ -6,12 +6,41 @@ TABLE=26642
 FULL_TUNNELS=(wg-proton wg-home)
 PREFERRED_IFACE="${1:-}"
 
+runtime_state_dir() {
+    printf '/run/wg-split-tunnel\n'
+}
+
 state_file() {
     local state_home="$HOME/.local/state"
     if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
         state_home="$(getent passwd "$SUDO_USER" | cut -d: -f6)/.local/state"
     fi
     printf '%s/wg-killswitch-active\n' "$state_home"
+}
+
+preferred_tunnel_file() {
+    printf '%s/active-full-tunnel\n' "$(runtime_state_dir)"
+}
+
+read_preferred_tunnel() {
+    local file
+    local iface
+
+    file="$(preferred_tunnel_file)"
+    [ -r "$file" ] || return 1
+    iface="$(tr -d '\r\n' < "$file")"
+    [ -n "$iface" ] || return 1
+    printf '%s\n' "$iface"
+}
+
+cgroup_path() {
+    local dir
+    for dir in /sys/fs/cgroup/user.slice/user-*.slice/user@*.service/novpn.slice; do
+        [ -d "$dir" ] || continue
+        printf '%s\n' "${dir#/sys/fs/cgroup/}"
+        return 0
+    done
+    return 1
 }
 
 iface_is_up() {
@@ -116,6 +145,10 @@ fi
 
 if [ "$(count_full_tunnels_up)" -gt 1 ]; then
     if [ -z "$PREFERRED_IFACE" ] || [[ ! " ${FULL_TUNNELS[*]} " =~ " ${PREFERRED_IFACE} " ]] || ! iface_is_up "$PREFERRED_IFACE"; then
+        PREFERRED_IFACE="$(read_preferred_tunnel 2>/dev/null || true)"
+    fi
+
+    if [ -z "$PREFERRED_IFACE" ] || [[ ! " ${FULL_TUNNELS[*]} " =~ " ${PREFERRED_IFACE} " ]] || ! iface_is_up "$PREFERRED_IFACE"; then
         echo "wg-split-up: multiple full-tunnel interfaces are up, but no valid preferred interface was supplied" >&2
         exit 1
     fi
@@ -151,8 +184,8 @@ if [ -z "$GATEWAY" ] || [ -z "$DEVICE" ]; then
     exit 1
 fi
 
-CGROUP_PATH="user.slice/user-1000.slice/user@1000.service/novpn.slice"
-if [ ! -d "/sys/fs/cgroup/$CGROUP_PATH" ]; then
+CGROUP_PATH="$(cgroup_path || true)"
+if [ -z "$CGROUP_PATH" ] || [ ! -d "/sys/fs/cgroup/$CGROUP_PATH" ]; then
     echo "wg-split-up: novpn.slice cgroup not found (is novpn-anchor.service running?)" >&2
     exit 1
 fi
@@ -232,5 +265,9 @@ mkdir -p "$(dirname "$STATE_FILE")"
 if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
     chown "$SUDO_USER":"$SUDO_USER" "$STATE_FILE" 2>/dev/null || true
 fi
+
+PREFERRED_FILE="$(preferred_tunnel_file)"
+mkdir -p "$(dirname "$PREFERRED_FILE")"
+printf '%s\n' "$WG_UP" > "$PREFERRED_FILE"
 
 echo "wg-split-up: bypass via $GATEWAY dev $DEVICE (active tunnel: $WG_UP)"

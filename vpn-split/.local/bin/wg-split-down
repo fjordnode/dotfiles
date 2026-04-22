@@ -5,12 +5,41 @@ MARK=0x6e76
 TABLE=26642
 FULL_TUNNELS=(wg-proton wg-home)
 
+runtime_state_dir() {
+    printf '/run/wg-split-tunnel\n'
+}
+
 state_file() {
     local state_home="$HOME/.local/state"
     if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
         state_home="$(getent passwd "$SUDO_USER" | cut -d: -f6)/.local/state"
     fi
     printf '%s/wg-killswitch-active\n' "$state_home"
+}
+
+preferred_tunnel_file() {
+    printf '%s/active-full-tunnel\n' "$(runtime_state_dir)"
+}
+
+read_preferred_tunnel() {
+    local file
+    local iface
+
+    file="$(preferred_tunnel_file)"
+    [ -r "$file" ] || return 1
+    iface="$(tr -d '\r\n' < "$file")"
+    [ -n "$iface" ] || return 1
+    printf '%s\n' "$iface"
+}
+
+cgroup_path() {
+    local dir
+    for dir in /sys/fs/cgroup/user.slice/user-*.slice/user@*.service/novpn.slice; do
+        [ -d "$dir" ] || continue
+        printf '%s\n' "${dir#/sys/fs/cgroup/}"
+        return 0
+    done
+    return 1
 }
 
 iface_is_up() {
@@ -73,13 +102,30 @@ endpoint_rule() {
 
 # Rebuild around any remaining full-tunnel interface so the kill-switch and
 # bypass state reflect the current mode cleanly.
+ACTIVE_TUNNELS=()
 for iface in "${FULL_TUNNELS[@]}"; do
     if iface_is_up "$iface"; then
-        /home/hugo/.local/bin/wg-split-up
-        echo "wg-split-down: $iface still up, refreshed split-tunnel state"
-        exit 0
+        ACTIVE_TUNNELS+=("$iface")
     fi
 done
+
+if [ "${#ACTIVE_TUNNELS[@]}" -gt 0 ]; then
+    if [ "${#ACTIVE_TUNNELS[@]}" -eq 1 ]; then
+        /home/hugo/.local/bin/wg-split-up "${ACTIVE_TUNNELS[0]}"
+        echo "wg-split-down: ${ACTIVE_TUNNELS[0]} still up, refreshed split-tunnel state"
+        exit 0
+    fi
+
+    PREFERRED_IFACE="$(read_preferred_tunnel 2>/dev/null || true)"
+    if [ -n "$PREFERRED_IFACE" ] && iface_is_up "$PREFERRED_IFACE"; then
+        /home/hugo/.local/bin/wg-split-up "$PREFERRED_IFACE"
+        echo "wg-split-down: multiple full tunnels still up, refreshed preferred mode $PREFERRED_IFACE"
+        exit 0
+    fi
+
+    echo "wg-split-down: multiple full-tunnel interfaces are up, but no preferred interface could be determined" >&2
+    exit 1
+fi
 
 nft delete table inet split-tunnel 2>/dev/null || true
 ip rule del fwmark $MARK table $TABLE 2>/dev/null || true
@@ -98,8 +144,8 @@ if [ -z "$GATEWAY" ] || [ -z "$DEVICE" ]; then
     exit 1
 fi
 
-CGROUP_PATH="user.slice/user-1000.slice/user@1000.service/novpn.slice"
-if [ ! -d "/sys/fs/cgroup/$CGROUP_PATH" ]; then
+CGROUP_PATH="$(cgroup_path || true)"
+if [ -z "$CGROUP_PATH" ] || [ ! -d "/sys/fs/cgroup/$CGROUP_PATH" ]; then
     echo "wg-split-down: novpn.slice cgroup not found (is novpn-anchor.service running?)" >&2
     exit 1
 fi
