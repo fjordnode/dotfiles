@@ -159,8 +159,20 @@ spawn-at-startup "dms" "run"
 // This line starts waybar, a commonly used bar for Wayland compositors.
 environment {
   XDG_CURRENT_DESKTOP "niri"
-  // Ensure ~/.local/bin is in PATH for spawn commands
-  PATH "/home/hugo/.local/bin:/usr/local/bin:/usr/bin"
+  XDG_SESSION_DESKTOP "niri"
+  XDG_SESSION_TYPE "wayland"
+  GDK_BACKEND "wayland,x11,*"
+  QT_QPA_PLATFORM "wayland;xcb"
+  SDL_VIDEODRIVER "wayland,x11"
+  MOZ_ENABLE_WAYLAND "1"
+  ELECTRON_OZONE_PLATFORM_HINT "wayland"
+  OZONE_PLATFORM "wayland"
+  XCURSOR_THEME "Breeze_Light"
+  XCURSOR_SIZE "26"
+  GTK_USE_PORTAL "1"
+  EDITOR "nvim"
+  VISUAL "nvim"
+  PATH "/home/hugo/.bun/bin:/home/hugo/.local/npm-global/bin:/home/hugo/.opencode/bin:/home/hugo/.local/nvim/bin:/home/hugo/.cargo/bin:/home/hugo/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
 }
 hotkey-overlay {
     skip-at-startup
@@ -468,6 +480,8 @@ binds {
     Alt+XF86Launch1 { screenshot-window; }
     Mod+Shift+S { spawn "niri-screenshot-satty"; }
     Mod+Shift+X { screenshot; }
+    Mod+Shift+C { spawn-sh "pkill hyprpicker || hyprpicker -a"; }
+    Mod+Shift+T { spawn-sh "grim -g \"$(slurp)\" - | tesseract - - | wl-copy && notify-send \"OCR\" \"Text copied to clipboard\""; }
 
     // --- Screen Recording ---
     Mod+Shift+R { spawn-sh "pgrep -x wf-recorder && pkill -INT wf-recorder || wf-recorder -g \"$(slurp)\" -f ~/Videos/recording-$(date +%Y-%m-%d_%H-%M-%S).mp4"; }
@@ -545,4 +559,3 @@ window-rule {
 
 
 include "./noctalia.kdl"
-
