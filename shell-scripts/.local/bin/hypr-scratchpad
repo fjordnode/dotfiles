@@ -1,0 +1,7 @@
+#!/bin/bash
+count=$(hyprctl clients -j | jq '[.[] | select(.workspace.name == "special:scratchpad")] | length')
+if [ "$count" -eq 0 ]; then
+    hyprctl dispatch exec "[workspace special:scratchpad] kitty --class hypr-scratchpad"
+else
+    hyprctl dispatch togglespecialworkspace scratchpad
+fi
