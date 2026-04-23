@@ -1,0 +1,25 @@
+#!/bin/bash
+# Freeze screen → uniform overlay → select region → crop → satty
+out=~/Pictures/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png
+tmp=/tmp/screenshot-freeze-$$.png
+
+# Capture + freeze in parallel
+grim "$tmp" &
+hyprpicker -r -z -d &
+picker_pid=$!
+wait %1
+
+# slurp immediately — hyprpicker is already up
+sel=$(slurp -b 00000000 -s 00000000 -w 2 -c cba6f7ff 2>/dev/null)
+kill $picker_pid 2>/dev/null
+wait $picker_pid 2>/dev/null
+
+[ -z "$sel" ] && rm -f "$tmp" && exit 0
+
+# Crop + copy
+IFS=', x' read -r x y w h <<< "$sel"
+magick "$tmp" -crop "${w}x${h}+${x}+${y}" +repage "$out"
+rm -f "$tmp"
+
+wl-copy < "$out"
+satty --filename "$out" --output-filename "$out" --copy-command wl-copy
