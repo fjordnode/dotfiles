@@ -1,0 +1,39 @@
+#!/bin/bash
+APP_ID="scratchpad"
+LOCK="/tmp/scratchpad.lock"
+
+find_scratchpad() {
+    niri msg windows 2>/dev/null | awk -v app="$APP_ID" '
+        /^Window ID/ { id = $3; sub(/:$/, "", id) }
+        /App ID:/ { gsub(/"/, "", $4); if ($4 == app) { print id; exit } }
+    '
+}
+
+current_workspace() {
+    niri msg focused-window 2>/dev/null | awk '/Workspace ID:/ { print $3 }'
+}
+
+scratchpad_id=$(find_scratchpad)
+
+if [ -z "$scratchpad_id" ]; then
+    # Prevent double-spawn: atomic lock with 2s expiry
+    if ! (set -C; echo $$ > "$LOCK") 2>/dev/null; then
+        lock_age=$(( $(date +%s) - $(stat -c %Y "$LOCK" 2>/dev/null || echo 0) ))
+        [ "$lock_age" -lt 2 ] && exit 0
+        rm -f "$LOCK"
+    fi
+    niri msg action spawn -- kitty --app-id "$APP_ID"
+    (sleep 2; rm -f "$LOCK") &
+    exit 0
+fi
+
+focused_id=$(niri msg focused-window 2>/dev/null | awk '/^Window ID/ { print $3; exit }' | tr -d ':')
+
+if [ "$focused_id" = "$scratchpad_id" ]; then
+    niri msg action focus-window-previous 2>/dev/null
+else
+    ws=$(current_workspace)
+    # Move scratchpad to current workspace (without following focus), then focus it
+    niri msg action move-window-to-workspace --window-id "$scratchpad_id" --focus false "$ws" 2>/dev/null
+    niri msg action focus-window --id "$scratchpad_id"
+fi

@@ -1,0 +1,8 @@
+#!/bin/sh
+# Power off when idle timeout fires AND lid is closed AND on battery.
+# Used by hypridle (hypr battery profile + niri standalone hypridle-shutdown.conf).
+closed=$(busctl get-property org.freedesktop.login1 /org/freedesktop/login1 \
+    org.freedesktop.login1.Manager LidClosed 2>/dev/null | awk '{print $2}')
+status=$(\cat /sys/class/power_supply/macsmc-battery/status 2>/dev/null)
+echo "$(date '+%F %T') fired, LidClosed=$closed, status=$status" >> /tmp/idle-shutdown.log
+[ "$closed" = "true" ] && [ "$status" = "Discharging" ] && systemctl poweroff

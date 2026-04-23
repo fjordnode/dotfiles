@@ -12,6 +12,10 @@ output "eDP-1" {
 }
 
 
+// Stash workspaces for scratchpad tools
+workspace "ndrop"
+workspace "stash"
+
 gestures {
     hot-corners {
         off
@@ -268,8 +272,8 @@ window-rule {
 window-rule {
     match app-id="yoink"
     open-floating true
-    default-column-width { fixed 900; }
-    default-window-height { fixed 650; }
+    default-column-width { fixed 1100; }
+    default-window-height { fixed 750; }
 }
 // Screen recording editor (floating TUI)
 window-rule {
@@ -324,7 +328,8 @@ binds {
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 
     // --- Application Launchers ---
-    Mod+Return hotkey-overlay-title="Open Terminal" { spawn "ghostty"; }
+    Mod+Return hotkey-overlay-title="Open Terminal" { spawn "kitty"; }
+    Mod+S hotkey-overlay-title="Scratchpad" { spawn "ndrop" "-c" "scratchpad" "kitty" "--class" "scratchpad"; }
     Mod+B hotkey-overlay-title="Open Firefox" {
         spawn-sh "id=$(niri msg -j windows | jq -r '.[] | select(.app_id | test(\"firefox$\")) | .id' | head -1); if [ -n \"$id\" ]; then niri msg action focus-window --id $id; else firefox; fi";
     }
@@ -465,7 +470,7 @@ binds {
     Mod+Shift+X { screenshot; }
 
     // --- Screen Recording ---
-    Mod+Shift+R { spawn-sh "pgrep -x wf-recorder && omarchy-cmd-screenrecord || omarchy-menu screenrecord"; }
+    Mod+Shift+R { spawn-sh "pgrep -x wf-recorder && pkill -INT wf-recorder || wf-recorder -g \"$(slurp)\" -f ~/Videos/recording-$(date +%Y-%m-%d_%H-%M-%S).mp4"; }
 
     // --- Audio Controls (fallback — DMS overrides with OSD) ---
     XF86AudioRaiseVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "3%+"; }
@@ -494,6 +499,16 @@ window-rule {
     open-floating true
     default-column-width { fixed 800; }
     default-window-height { proportion 1.0; }
+    border { off; }
+    focus-ring { off; }
+}
+
+// Scratchpad terminal
+window-rule {
+    match app-id="scratchpad"
+    open-floating true
+    default-column-width { proportion 0.8; }
+    default-window-height { proportion 0.4; }
     border { off; }
     focus-ring { off; }
 }
@@ -527,4 +542,7 @@ window-rule {
     default-window-height { fixed 250; }
 }
 
+
+
+include "./noctalia.kdl"
 

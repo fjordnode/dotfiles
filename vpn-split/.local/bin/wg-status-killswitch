@@ -1,7 +1,6 @@
 #!/bin/bash
-# Emit ks label, green if the kill-switch table is active, gray otherwise.
 if [ -f "${XDG_STATE_HOME:-$HOME/.local/state}/wg-killswitch-active" ]; then
-    echo '<font color="#a6e3a1">ks</font>'
+    echo '{"text":"ks","icon":"shield-lock","color":"primary"}'
 else
-    echo '<font color="#6c7086">ks</font>'
+    echo '{"text":"ks","icon":"shield-off","color":"none"}'
 fi

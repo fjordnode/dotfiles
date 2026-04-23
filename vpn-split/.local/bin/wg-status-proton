@@ -1,7 +1,6 @@
 #!/bin/bash
-# Emit wg-p label, green if wg-proton is up, gray otherwise
 if ip link show wg-proton up &>/dev/null; then
-    echo '<font color="#a6e3a1">wg-p</font>'
+    echo '{"text":"wg-p","icon":"shield-check","color":"primary"}'
 else
-    echo '<font color="#6c7086">wg-p</font>'
+    echo '{"text":"wg-p","icon":"shield-off","color":"none"}'
 fi

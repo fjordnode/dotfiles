@@ -51,12 +51,7 @@ export TERM=xterm-256color
 export LS_COLORS="$LS_COLORS:ow=01;36:tw=01;34:"
 export CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1
 
-# Omarchy bash aliases and functions (tmux layouts, git shortcuts, etc.)
-export OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
-source "$OMARCHY_PATH/default/bash/aliases"
-source "$OMARCHY_PATH/default/bash/functions"
-
-# Aliases (overrides omarchy defaults where needed)
+# Aliases
 alias c='clear'
 alias ll='ls -lah --color=auto'
 alias la='ls -A'
@@ -142,6 +137,7 @@ bindkey -M emacs '^[[A' history-substring-search-up
 bindkey -M emacs '^[[B' history-substring-search-down
 
 # Load custom functions
+source "$HOME/.local/share/shell-functions.sh"
 [ -f ~/.local/bin/rm-safety ] && source ~/.local/bin/rm-safety
 source "$HOME/dotfiles/shell/functions/dotfiles-check.zsh"
 source "$HOME/dotfiles/shell/functions/fuzzy-listing.zsh"

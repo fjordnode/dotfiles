@@ -1,8 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-exec /home/hugo/.local/bin/novpn \
-    /usr/bin/brave-origin-nightly \
+# Find the novpn.slice cgroup path (works regardless of UID)
+novpn_cgroup=$(find /sys/fs/cgroup/user.slice -type d -name novpn.slice 2>/dev/null | head -1)
+
+if [ -n "$novpn_cgroup" ] && [ -w "$novpn_cgroup/cgroup.procs" ]; then
+    # Move ourselves into novpn.slice directly (avoids nested systemd-run from Walker)
+    echo $$ > "$novpn_cgroup/cgroup.procs" 2>/dev/null
+fi
+
+exec /usr/bin/brave-origin-nightly \
     --user-data-dir="${XDG_DATA_HOME:-$HOME/.local/share}/brave-origin-nightly-novpn" \
     --class="brave-origin-novpn" \
     "$@"

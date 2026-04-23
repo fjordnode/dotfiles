@@ -8,9 +8,10 @@ binds {
     }
     // Mod+V kept as niri-paste in universal binds
     // Mod+Shift+V kept as yoink in universal binds
-    Mod+S hotkey-overlay-title="Settings" {
-        spawn "dms" "ipc" "call" "settings" "focusOrToggle";
-    }
+    // Mod+S disabled — used for scratchpad
+    // Mod+S hotkey-overlay-title="Settings" {
+    //     spawn "dms" "ipc" "call" "settings" "focusOrToggle";
+    // }
     Mod+M hotkey-overlay-title="Task Manager" {
         spawn "dms" "ipc" "call" "processlist" "focusOrToggle";
     }

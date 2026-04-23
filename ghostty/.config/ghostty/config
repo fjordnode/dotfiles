@@ -26,5 +26,7 @@ window-padding-x = 6
 window-padding-y = 6
 window-width = 110
 
+keybind = ctrl+shift+backspace=reset
+
 # DMS matugen theme (auto-generated on theme switch)
-theme = Catppuccin Mocha
+theme = noctalia
