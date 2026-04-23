@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Scratchpad
+GenericName=Terminal
+Comment=Kitty scratchpad terminal
+Exec=kitty --app-id hypr-scratchpad
+Icon=kitty
+Terminal=false
+Categories=System;TerminalEmulator;
+StartupWMClass=hypr-scratchpad

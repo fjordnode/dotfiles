@@ -1,0 +1,11 @@
+[Unit]
+Description=Poll lid + battery every minute for auto-poweroff
+
+[Timer]
+OnBootSec=10s
+OnUnitActiveSec=5s
+AccuracySec=1s
+Unit=lid-shutdown.service
+
+[Install]
+WantedBy=timers.target

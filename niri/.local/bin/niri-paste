@@ -2,7 +2,7 @@
 if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
     app=$(hyprctl activewindow -j 2>/dev/null | jq -r '.class // ""')
     case "$app" in
-        kitty|scratchpad|Alacritty|foot|com.mitchellh.ghostty|org.wezfurlong.wezterm)
+        kitty|scratchpad|hypr-scratchpad|Alacritty|foot|com.mitchellh.ghostty|org.wezfurlong.wezterm)
             hyprctl dispatch sendshortcut "CTRL SHIFT, V," ;;
         *)
             hyprctl dispatch sendshortcut "CTRL, V," ;;
@@ -10,7 +10,7 @@ if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
 else
     app=$(niri msg -j focused-window 2>/dev/null | jq -r '.app_id // ""')
     case "$app" in
-        kitty|scratchpad|Alacritty|foot|com.mitchellh.ghostty|org.wezfurlong.wezterm)
+        kitty|scratchpad|hypr-scratchpad|Alacritty|foot|com.mitchellh.ghostty|org.wezfurlong.wezterm)
             wtype -M ctrl -M shift -k v ;;
         *)
             wtype -M ctrl -k v ;;

@@ -1,0 +1,8 @@
+[Unit]
+Description=Poweroff if lid has been closed on battery for too long
+Documentation=https://github.com/hugo/omarchy-fedora
+
+[Service]
+Type=oneshot
+Environment=LID_SHUTDOWN_SECS=300
+ExecStart=/home/hugo/.local/bin/omarchy-lid-shutdown-check

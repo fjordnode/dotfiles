@@ -1,0 +1,32 @@
+#!/bin/sh
+set -eu
+
+timeout="${LID_SHUTDOWN_SECS:-300}"
+state_dir="${XDG_RUNTIME_DIR:-/tmp}"
+state_file="$state_dir/lid-shutdown.closed-since"
+log_file="${XDG_STATE_HOME:-$HOME/.local/state}/lid-shutdown.log"
+
+closed="$(busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager LidClosed 2>/dev/null | awk '{print $2}')"
+status="$(cat /sys/class/power_supply/macsmc-battery/status 2>/dev/null || true)"
+now="$(date +%s)"
+
+mkdir -p "$(dirname "$log_file")"
+
+if [ "$closed" != "true" ] || [ "$status" != "Discharging" ]; then
+    rm -f "$state_file"
+    exit 0
+fi
+
+if [ ! -s "$state_file" ]; then
+    printf '%s\n' "$now" > "$state_file"
+    printf '%s lid closed on battery, starting timer\n' "$(date '+%F %T')" >> "$log_file"
+    exit 0
+fi
+
+since="$(cat "$state_file" 2>/dev/null || printf '%s' "$now")"
+elapsed=$((now - since))
+
+if [ "$elapsed" -ge "$timeout" ]; then
+    printf '%s powering off after %ss lid-closed on battery\n' "$(date '+%F %T')" "$elapsed" >> "$log_file"
+    systemctl poweroff
+fi
