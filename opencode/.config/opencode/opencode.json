@@ -3,7 +3,9 @@
   "instructions": [
     "~/.config/opencode/instructions.md"
   ],
+  "model": "openai/gpt-5.5",
   "permission": {
+    "edit": "ask",
     "bash": {
       "*": "ask",
       "git status": "allow",
@@ -32,8 +34,8 @@
       "rm *": "ask",
       "/bin/rm": "ask",
       "/bin/rmdir": "ask",
-      "mv *": "allow",
-      "mkdir *": "allow",
+      "mv *": "ask",
+      "mkdir *": "ask",
       "ls": "allow",
       "ls *": "allow",
       "/bin/ls": "allow",
@@ -62,15 +64,51 @@
       "which": "allow",
       "tree": "allow",
       "tree *": "allow"
-    }
+    },
+    "read": {
+      "*": "allow",
+      "*.env": "ask",
+      "*.env.*": "ask",
+      "*.pem": "ask",
+      "*.key": "ask",
+      "*.p12": "ask",
+      "*.pfx": "ask",
+      "*.crt": "ask",
+      "*.cer": "ask",
+      "*.der": "ask",
+      "*/.ssh/*": "ask",
+      "*/.aws/*": "ask",
+      "*/.gnupg/*": "ask",
+      "*/.docker/config.json": "ask",
+      "*/.kube/config": "ask",
+      "*/.npmrc": "ask",
+      "*/.pypirc": "ask",
+      "*/.git-credentials": "ask",
+      "*/.netrc": "ask"
+    },
+    "external_directory": {
+      "*": "ask",
+      "/opt/docker/compose": "allow",
+      "/opt/docker/compose/*": "allow"
+    },
+    "webfetch": "ask",
+    "websearch": "ask",
+    "task": "ask"
   },
-  "plugin": [
-    "oh-my-opencode-slim",
-    "opencode-anthropic-auth@latest"
-  ],
   "agent": {
+    "build": {
+      "model": "openai/gpt-5.5",
+      "variant": "high"
+    },
+    "plan": {
+      "model": "openai/gpt-5.5",
+      "variant": "high"
+    },
     "explore": {
-      "disable": true
+      "model": "openai/gpt-5.3-codex"
+    },
+    "code-explorer": {
+      "model": "openai/gpt-5.3-codex"
     },
     "general": {
       "disable": true
