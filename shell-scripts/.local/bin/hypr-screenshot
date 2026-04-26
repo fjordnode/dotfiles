@@ -4,7 +4,7 @@ out=~/Pictures/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png
 tmp=/tmp/screenshot-freeze-$$.png
 
 # Capture + freeze in parallel
-grim "$tmp" &
+grim -s 1 "$tmp" &
 hyprpicker -r -z -d &
 picker_pid=$!
 wait %1
