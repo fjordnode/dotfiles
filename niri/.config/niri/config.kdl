@@ -28,8 +28,8 @@ gestures {
 input {
     keyboard {
         xkb {
-            layout "nobrackets"
-            // swap + level3 handled in nobrackets layout directly
+            layout "nobrackets_pc"
+            // brackets on ø/æ are handled in the custom nobrackets_pc layout
         }
         repeat-rate 45
         repeat-delay 300

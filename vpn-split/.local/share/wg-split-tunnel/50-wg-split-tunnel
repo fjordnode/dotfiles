@@ -18,7 +18,7 @@ case "$IFACE" in
             down) /home/hugo/.local/bin/wg-split-down ;;
         esac
         ;;
-    wlp1s0f0)
+    wlan0|wlp1s0f0)
         # Gateway may have changed; refresh bypass if any WG is still active.
         # When multiple full tunnels are unexpectedly up, wg-split-up falls
         # back to the saved preferred mode in /run/wg-split-tunnel.

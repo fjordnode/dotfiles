@@ -5,10 +5,30 @@ runtime_state_dir() {
 }
 
 state_file() {
-    local state_home="$HOME/.local/state"
+    local state_home="${XDG_STATE_HOME:-}"
+    local home="${HOME:-}"
+
     if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
-        state_home="$(getent passwd "$SUDO_USER" | cut -d: -f6)/.local/state"
+        home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+    elif [ "$(id -u)" -eq 0 ] && [ -z "$home" ]; then
+        local dir uid
+        for dir in /sys/fs/cgroup/user.slice/user-*.slice/user@*.service/novpn.slice; do
+            [ -d "$dir" ] || continue
+            uid="${dir#*/user-}"
+            uid="${uid%%.slice/*}"
+            home="$(getent passwd "$uid" | cut -d: -f6)"
+            [ -n "$home" ] && break
+        done
     fi
+
+    if [ -z "$state_home" ]; then
+        if [ -n "$home" ]; then
+            state_home="$home/.local/state"
+        else
+            state_home="$(runtime_state_dir)"
+        fi
+    fi
+
     printf '%s/wg-killswitch-active\n' "$state_home"
 }
 

@@ -1,8 +1,8 @@
 [Unit]
 Description=VPN bypass cgroup anchor
-Slice=novpn.slice
 
 [Service]
+Slice=novpn.slice
 ExecStart=/usr/bin/sleep infinity
 Restart=always
 
