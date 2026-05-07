@@ -28,16 +28,16 @@ vim.keymap.set('n', '<leader>Y', '"+Y', { desc = 'Yank line to clipboard' })
 vim.keymap.set('v', '<LeftRelease>', '"+y<LeftRelease>', { desc = 'Copy mouse selection to clipboard' })
 vim.keymap.set('v', '<2-LeftMouse>', '"+y<2-LeftMouse>', { desc = 'Copy double-click selection to clipboard' })
 
--- Use our custom OSC 52 script for clipboard (works with tmux + mosh)
+-- OSC 52 clipboard via script (writes directly to tmux client TTY for mosh compat)
 vim.g.clipboard = {
-  name = 'OSC52',
+  name = 'OSC 52',
   copy = {
-    ['+'] = {'sh', '-c', 'cat | ~/.osc52-yank.sh'},
-    ['*'] = {'sh', '-c', 'cat | ~/.osc52-yank.sh'},
+    ['+'] = {'sh', '-c', 'cat | ~/.local/bin/osc52-yank'},
+    ['*'] = {'sh', '-c', 'cat | ~/.local/bin/osc52-yank'},
   },
   paste = {
-    ['+'] = {'+'},  -- OSC 52 doesn't support paste
-    ['*'] = {'*'},
+    ['+'] = require('vim.ui.clipboard.osc52').paste('+'),
+    ['*'] = require('vim.ui.clipboard.osc52').paste('*'),
   },
 }
 

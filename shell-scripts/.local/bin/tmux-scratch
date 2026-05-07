@@ -1,0 +1,4 @@
+#!/bin/sh
+unset TMUX
+tmux has-session -t scratch 2>/dev/null || tmux new-session -d -s scratch
+exec tmux attach -t scratch
