@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode="${1:-status}"
+config="${HOME}/.config/niri/config.kdl"
+
+usage() {
+    printf 'Usage: %s {status|dms|noctalia}\n' "$(basename "$0")"
+}
+
+require_config() {
+    if [ ! -f "$config" ]; then
+        printf 'Missing %s\n' "$config" >&2
+        exit 1
+    fi
+}
+
+backup_config() {
+    cp "$config" "${config}.backup.$(date +%Y%m%d-%H%M%S)"
+}
+
+reload_niri() {
+    niri msg action load-config-file >/dev/null 2>&1 || true
+}
+
+switch_config_to_dms() {
+    perl -0pi -e 's/spawn-at-startup "qs" "-d" "-c" "noctalia-shell"/spawn-at-startup "dms" "run"/g; s/include "noctalia\/binds\.kdl"/include "dms\/binds.kdl"/g; s/include "noctalia\/layout\.kdl"/include "dms\/layout.kdl"/g' "$config"
+}
+
+switch_config_to_noctalia() {
+    perl -0pi -e 's/spawn-at-startup "dms" "run"/spawn-at-startup "qs" "-d" "-c" "noctalia-shell"/g; s/include "dms\/binds\.kdl"/include "noctalia\/binds.kdl"/g; s/include "dms\/layout\.kdl"/include "noctalia\/layout.kdl"/g' "$config"
+}
+
+stop_dms() {
+    pkill -x dms >/dev/null 2>&1 || true
+    qs kill --any-display -p /usr/share/quickshell/dms >/dev/null 2>&1 || true
+}
+
+start_dms() {
+    if ! pgrep -x dms >/dev/null 2>&1; then
+        nohup dms run >"${XDG_RUNTIME_DIR:-/tmp}/dms-shell.log" 2>&1 &
+    fi
+}
+
+stop_noctalia() {
+    qs kill --any-display -c noctalia-shell >/dev/null 2>&1 || true
+}
+
+start_noctalia() {
+    qs -d -c noctalia-shell
+}
+
+case "$mode" in
+    status)
+        if pgrep -x dms >/dev/null 2>&1; then
+            printf 'DMS is running.\n'
+        else
+            printf 'DMS is not running.\n'
+        fi
+
+        if qs list --all 2>/dev/null | grep -q 'noctalia-shell'; then
+            printf 'Noctalia is running.\n'
+        else
+            printf 'Noctalia is not running.\n'
+        fi
+        ;;
+    dms)
+        require_config
+        backup_config
+        switch_config_to_dms
+        stop_noctalia
+        start_dms
+        reload_niri
+        printf 'Switched Niri shell to DMS.\n'
+        ;;
+    noctalia)
+        require_config
+        backup_config
+        switch_config_to_noctalia
+        stop_dms
+        if ! start_noctalia; then
+            switch_config_to_dms
+            start_dms
+            reload_niri
+            printf 'Noctalia failed to start; restored DMS.\n' >&2
+            exit 1
+        fi
+        reload_niri
+        printf 'Switched Niri shell to Noctalia.\n'
+        ;;
+    -h|--help|help)
+        usage
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac

@@ -1,0 +1,58 @@
+// Noctalia keybinding overrides.
+// These replace universal fallbacks with Noctalia IPC equivalents.
+binds {
+    Mod+Space hotkey-overlay-title="Application Launcher" {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "launcher" "toggle";
+    }
+    Mod+M hotkey-overlay-title="Task Manager" {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "systemMonitor" "toggle";
+    }
+    Mod+N hotkey-overlay-title="Notification Center" {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "notifications" "toggleHistory";
+    }
+    Mod+Y hotkey-overlay-title="Browse Wallpapers" {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "wallpaper" "toggle";
+    }
+    Super+X hotkey-overlay-title="Power Menu" {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "sessionMenu" "toggle";
+    }
+    Ctrl+Alt+Delete hotkey-overlay-title="Task Manager" {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "systemMonitor" "toggle";
+    }
+
+    Mod+Alt+L hotkey-overlay-title="Lock Screen" {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "lockScreen" "lock";
+    }
+
+    XF86AudioRaiseVolume allow-when-locked=true {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "volume" "increase";
+    }
+    XF86AudioLowerVolume allow-when-locked=true {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "volume" "decrease";
+    }
+    XF86AudioMute allow-when-locked=true {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "volume" "muteOutput";
+    }
+    XF86AudioMicMute allow-when-locked=true {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "volume" "muteInput";
+    }
+    XF86AudioPlay allow-when-locked=true {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "media" "playPause";
+    }
+    XF86AudioPause allow-when-locked=true {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "media" "playPause";
+    }
+    XF86AudioPrev allow-when-locked=true {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "media" "previous";
+    }
+    XF86AudioNext allow-when-locked=true {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "media" "next";
+    }
+
+    XF86MonBrightnessUp allow-when-locked=true {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "brightness" "increase";
+    }
+    XF86MonBrightnessDown allow-when-locked=true {
+        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "brightness" "decrease";
+    }
+}

@@ -1,0 +1,57 @@
+// DMS Window Rules - Managed by DankMaterialShell
+// Do not edit manually - changes may be overwritten
+
+// @id=wr_1774041568481666122 @name=firefox
+window-rule {
+    match app-id="^firefox$"
+    scroll-factor 0.40
+}
+
+// @id=wr_1774164236445399012 @name=vesktop
+window-rule {
+    match app-id="^vesktop$"
+    open-maximized-to-edges true
+    open-fullscreen true
+}
+
+// @id=wr_1775989148609661429 @name=brave-browser
+window-rule {
+    match app-id="^brave-browser$"
+    scroll-factor 1.00
+}
+
+// @id=wr_1775989179715993188 @name=dev.noctalia.noctalia-qs
+window-rule {
+    match app-id="^dev.noctalia.noctalia-qs$"
+    scroll-factor 2.00
+}
+
+// @id=wr_1776719631190014974 @name=brave-origin-nightly
+window-rule {
+    match app-id="^brave-origin-nightly$"
+    open-maximized-to-edges true
+}
+
+// @id=wr_1776720187474115457 @name=firefox
+window-rule {
+    match app-id="^firefox$"
+    open-maximized-to-edges true
+}
+
+// @id=wr_1776720201281609587 @name=firefox
+window-rule {
+    match app-id="^firefox$"
+    open-maximized-to-edges true
+}
+
+// @id=wr_1776720709566755338 @name=firefox
+window-rule {
+    match app-id="^firefox$"
+    scroll-factor 1.00
+}
+
+// @id=wr_1777318500494639365 @name=firefox
+window-rule {
+    match app-id="^firefox$"
+    open-maximized-to-edges true
+}

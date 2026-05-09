@@ -1,0 +1,13 @@
+// Local Niri layout overrides used when Noctalia is the shell.
+layout {
+    gaps 4
+
+    border {
+        width 1
+    }
+}
+
+window-rule {
+    geometry-corner-radius 3
+    clip-to-geometry true
+}

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+app_id="niri-scratch-kitty"
+session="scratchpad"
+
+window_id() {
+    niri msg -j windows | jq -r --arg app_id "$app_id" '.[] | select(.app_id == $app_id) | .id' | tail -n 1
+}
+
+focused_workspace() {
+    niri msg -j workspaces | jq -r '.[] | select(.is_focused) | .idx'
+}
+
+focus_and_center() {
+    local id="$1"
+    local workspace
+
+    workspace=$(focused_workspace)
+    [ -n "$workspace" ] && niri msg action move-window-to-workspace --window-id "$id" "$workspace" >/dev/null 2>&1 || true
+    niri msg action move-window-to-floating --id "$id" >/dev/null 2>&1 || true
+    niri msg action set-window-width --id "$id" 1000 >/dev/null 2>&1 || true
+    niri msg action set-window-height --id "$id" 650 >/dev/null 2>&1 || true
+    sleep 0.04
+    niri msg action center-window --id "$id" >/dev/null 2>&1 || true
+    niri msg action focus-window --id "$id" >/dev/null 2>&1 || true
+}
+
+id=$(window_id)
+
+if [ -n "$id" ]; then
+    pid=$(niri msg -j windows | jq -r --arg app_id "$app_id" '.[] | select(.app_id == $app_id) | .pid' | tail -n 1)
+    [ -n "$pid" ] && kill "$pid" >/dev/null 2>&1 || true
+    exit 0
+fi
+
+tmux has-session -t "$session" >/dev/null 2>&1 || tmux new-session -d -s "$session"
+tmux setw -t "$session" pane-border-status off >/dev/null 2>&1 || true
+kitty --detach --single-instance --instance-group "$app_id" --class "$app_id" --title Scratchpad -e tmux attach-session -t "$session"
+
+for _ in {1..30}; do
+    id=$(window_id)
+    if [ -n "$id" ]; then
+        focus_and_center "$id"
+        exit 0
+    fi
+    sleep 0.02
+done
