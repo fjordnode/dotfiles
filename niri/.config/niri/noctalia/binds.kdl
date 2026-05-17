@@ -13,7 +13,7 @@ binds {
     Mod+Y hotkey-overlay-title="Browse Wallpapers" {
         spawn "qs" "ipc" "-c" "noctalia-shell" "call" "wallpaper" "toggle";
     }
-    Super+X hotkey-overlay-title="Power Menu" {
+    Mod+Shift+P hotkey-overlay-title="Power Menu" {
         spawn "qs" "ipc" "-c" "noctalia-shell" "call" "sessionMenu" "toggle";
     }
     Ctrl+Alt+Delete hotkey-overlay-title="Task Manager" {

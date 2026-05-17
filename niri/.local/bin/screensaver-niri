@@ -1,0 +1,16 @@
+#!/bin/bash
+# Screensaver — launches fullscreen cmatrix on Niri, exits on input.
+# Window-rule in ~/.config/niri/config.kdl (match app-id="screensaver")
+# handles fullscreen + borderless. Cursor auto-hide is native to Niri.
+
+if [[ "${1:-}" == "--stop" ]]; then
+    pkill -f 'kitty --class screensaver' 2>/dev/null || true
+    pkill -x cmatrix 2>/dev/null || true
+    exit 0
+fi
+
+# Don't launch if already running
+pgrep -f 'kitty --class screensaver' >/dev/null && exit 0
+
+# Foreground so callers (idle daemons, keybinds) can chain on exit
+exec kitty --class screensaver -e bash -c 'cmatrix -C green -u 6 -s'

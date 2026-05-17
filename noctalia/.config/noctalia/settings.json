@@ -478,7 +478,7 @@
         "wallpaperChange": ""
     },
     "idle": {
-        "customCommands": "[{\"name\":\"Screensaver\",\"timeout\":120,\"command\":\"screensaver\",\"resumeCommand\":\"\"}]",
+        "customCommands": "[{\"name\":\"Screensaver\",\"timeout\":120,\"command\":\"screensaver-niri\",\"resumeCommand\":\"screensaver-niri --stop\"}]",
         "enabled": true,
         "fadeDuration": 5,
         "lockCommand": "",

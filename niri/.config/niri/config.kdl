@@ -11,6 +11,18 @@ output "eDP-1" {
     scale 1.25
 }
 
+output "HDMI-A-1" {
+    mode "3840x2160@119.880"
+    scale 2
+    position x=0 y=0
+    variable-refresh-rate on-demand=true
+}
+
+cursor {
+    xcursor-theme "Adwaita"
+    xcursor-size 19
+}
+
 gestures {
     hot-corners {
         off
@@ -138,10 +150,7 @@ overview {
     }
 }
 // Autostart
-// swayidle: only the screensaver timer; DMS still owns lock + DPMS.
-spawn-at-startup "swayidle" "-w" "timeout" "120" "screensaver-niri"
-spawn-at-startup "wl-paste" "--type" "text" "--watch" "cliphist" "store"
-spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
+// Noctalia owns idle, OSD, notifications, and cliphist watchers.
 spawn-at-startup "wl-paste" "--watch" "yoink-watcher"
 spawn-at-startup "yoink-sync-dms-theme"
 spawn-at-startup "qs" "-d" "-c" "noctalia-shell"
@@ -274,6 +283,15 @@ window-rule {
     open-floating true
     default-column-width { fixed 900; }
     default-window-height { fixed 650; }
+    draw-border-with-background false
+}
+window-rule {
+    match app-id=r#"^com\.gabm\.satty$"#
+    match app-id=r#"^satty$"#
+    open-floating true
+    open-focused true
+    default-column-width { proportion 0.75; }
+    default-window-height { proportion 0.8; }
 }
 // Screen recording editor (floating TUI)
 window-rule {
@@ -321,12 +339,7 @@ recent-windows {
 }
 
 // Shell-managed includes
-include "dms/colors.kdl"
 include "noctalia/layout.kdl"
-include "dms/alttab.kdl"
-include "dms/outputs.kdl"
-include "dms/cursor.kdl"
-include "dms/windowrules.kdl"
 
 // Background blur, added for niri 26.04.
 // Clients still need transparency for the blur to be visible.
@@ -518,9 +531,9 @@ binds {
     Mod+Shift+X { screenshot; }
 
     // --- Screen Recording ---
-    Mod+Shift+R { spawn-sh "pgrep -x wf-recorder && omarchy-cmd-screenrecord || omarchy-menu screenrecord"; }
+    Mod+Shift+R { spawn-sh "if pgrep -x wf-recorder >/dev/null; then pkill -INT wf-recorder; else geom=$(slurp) || exit 0; mkdir -p ~/Videos/Recordings && wf-recorder -g \"$geom\" -f ~/Videos/Recordings/\"Recording from $(date '+%Y-%m-%d %H-%M-%S').mp4\"; fi"; }
 
-    // --- Audio Controls (fallback — DMS overrides with OSD) ---
+    // --- Audio Controls (fallback; Noctalia overrides with OSD) ---
     XF86AudioRaiseVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "3%+"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "3%-"; }
     XF86AudioMute allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
@@ -530,7 +543,7 @@ binds {
     XF86AudioPrev allow-when-locked=true { spawn "playerctl" "previous"; }
     XF86AudioNext allow-when-locked=true { spawn "playerctl" "next"; }
 
-    // --- Brightness Controls (fallback — DMS overrides with OSD) ---
+    // --- Brightness Controls (fallback; Noctalia overrides with OSD) ---
     XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "set" "5%+"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "set" "5%-"; }
 
@@ -538,10 +551,10 @@ binds {
     Mod+Ctrl+P { power-off-monitors; }
 }
 
-// DMS keybinding overrides (comment out to use niri without DMS)
+// Noctalia keybinding overrides
 include "noctalia/binds.kdl"
 
-// DMS windows — float centered
+// Quickshell windows — float centered
 window-rule {
     match app-id=r#"^org\.quickshell$"#
     open-floating true
