@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+rules_file="${XDG_CONFIG_HOME:-$HOME/.config}/niri/noctalia/windowrules.kdl"
+end_marker="// @end-noctalia-rule-editor"
+
+show_error() {
+  zenity --error --title="Niri Window Rule" --text="$1" 2>/dev/null || true
+}
+
+show_info() {
+  zenity --info --title="Niri Window Rule" --text="$1" 2>/dev/null || true
+}
+
+notify() {
+  notify-send -t 3000 "Niri Window Rule" "$1" 2>/dev/null || true
+}
+
+active_json=$(niri msg -j focused-window 2>/dev/null || true)
+if [[ -z "$active_json" || "$active_json" == "null" ]]; then
+  active_json=$(niri msg -j windows 2>/dev/null | jq -c 'first(.[] | select(.is_focused)) // empty' || true)
+fi
+
+if [[ -z "$active_json" ]]; then
+  show_error "No focused Niri window found."
+  exit 1
+fi
+
+app_id=$(jq -r '.app_id // empty' <<<"$active_json")
+title=$(jq -r '.title // ""' <<<"$active_json")
+
+if [[ -z "$app_id" || "$app_id" == "null" ]]; then
+  show_error "Focused window has no app-id, so a per-app rule cannot be created."
+  exit 1
+fi
+
+safe_title=${title//$'\n'/ }
+safe_title=${safe_title:0:140}
+
+result=$(zenity --forms \
+  --title="Noctalia Window Rule" \
+  --width=560 \
+  --text="Create or replace a rule for the active app.\n\nApp ID: $app_id\nTitle: $safe_title\n\nBlank/Keep preserves existing generated values." \
+  --separator=$'\t' \
+  --add-entry="Scroll factor" \
+  --add-combo="Open mode" --combo-values="Keep|Floating|Tiling|Maximized to edges" \
+  --add-combo="Default width" --combo-values="Keep|1/3|1/2|2/3|800 px|1100 px" \
+  --add-combo="Default height" --combo-values="Keep|50%|60%|600 px|750 px" \
+  --add-combo="Open focused" --combo-values="Keep|Yes|No" \
+  --add-combo="Decorations" --combo-values="Keep|Hide border/focus ring" \
+  2>/dev/null) || exit 0
+
+IFS=$'\t' read -r scroll_factor open_mode width height open_focused decorations <<<"$result"
+
+scroll_factor=${scroll_factor//,/.}
+if [[ -n "$scroll_factor" && ! "$scroll_factor" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  show_error "Scroll factor must be a number, for example 0.34, 0.60, or 1.50."
+  exit 1
+fi
+
+tmp=$(mktemp)
+mkdir -p "$(dirname "$rules_file")"
+
+marker="// @noctalia-rule-editor app-id=$app_id"
+existing_block=""
+
+if [[ -f "$rules_file" ]]; then
+  existing_block=$(awk -v marker="$marker" -v end_marker="$end_marker" '
+    $0 == marker { keep = 1; next }
+    keep && $0 == end_marker { keep = 0; next }
+    keep { print }
+  ' "$rules_file")
+fi
+
+existing_scroll_factor=$(awk '/^[[:space:]]*scroll-factor[[:space:]]+/ { print $2; exit }' <<<"$existing_block")
+existing_open_line=$(awk '/^[[:space:]]*(open-floating|open-maximized-to-edges)[[:space:]]+/ { print; exit }' <<<"$existing_block")
+existing_width_line=$(awk '/^[[:space:]]*default-column-width[[:space:]]*\{/ { print; exit }' <<<"$existing_block")
+existing_height_line=$(awk '/^[[:space:]]*default-window-height[[:space:]]*\{/ { print; exit }' <<<"$existing_block")
+existing_focus_line=$(awk '/^[[:space:]]*open-focused[[:space:]]+/ { print; exit }' <<<"$existing_block")
+existing_decor_lines=$(awk '/^[[:space:]]*(border|focus-ring)[[:space:]]*\{[[:space:]]*off;?[[:space:]]*\}/ { print }' <<<"$existing_block")
+
+if [[ -f "$rules_file" ]]; then
+  awk -v marker="$marker" -v end_marker="$end_marker" '
+    $0 == marker { skip = 1; next }
+    skip && $0 == end_marker { skip = 0; next }
+    !skip { print }
+  ' "$rules_file" >"$tmp"
+else
+  {
+    printf '%s\n' '// Noctalia Window Rules'
+    printf '%s\n' '// Managed by niri-window-rule-editor.'
+    printf '%s\n' '// Manual edits outside marked blocks are preserved.'
+  } >"$tmp"
+fi
+
+app_regex=$(python3 -c 'import re, sys; print(re.escape(sys.argv[1]))' "$app_id")
+kdl_app_regex=$(jq -Rn --arg s "^$app_regex$" '$s')
+
+block=$(mktemp)
+has_rule=0
+chosen_scroll_factor="$scroll_factor"
+open_line="$existing_open_line"
+width_line="$existing_width_line"
+height_line="$existing_height_line"
+focus_line="$existing_focus_line"
+decor_lines="$existing_decor_lines"
+
+[[ -z "$chosen_scroll_factor" ]] && chosen_scroll_factor="$existing_scroll_factor"
+
+case "$open_mode" in
+  Floating) open_line='    open-floating true' ;;
+  Tiling) open_line='    open-floating false' ;;
+  "Maximized to edges") open_line='    open-maximized-to-edges true' ;;
+esac
+
+case "$width" in
+  "1/3") width_line='    default-column-width { proportion 0.33333; }' ;;
+  "1/2") width_line='    default-column-width { proportion 0.5; }' ;;
+  "2/3") width_line='    default-column-width { proportion 0.66667; }' ;;
+  "800 px") width_line='    default-column-width { fixed 800; }' ;;
+  "1100 px") width_line='    default-column-width { fixed 1100; }' ;;
+esac
+
+case "$height" in
+  "50%") height_line='    default-window-height { proportion 0.5; }' ;;
+  "60%") height_line='    default-window-height { proportion 0.6; }' ;;
+  "600 px") height_line='    default-window-height { fixed 600; }' ;;
+  "750 px") height_line='    default-window-height { fixed 750; }' ;;
+esac
+
+case "$open_focused" in
+  Yes) focus_line='    open-focused true' ;;
+  No) focus_line='    open-focused false' ;;
+esac
+
+case "$decorations" in
+  "Hide border/focus ring")
+    decor_lines=$'    border { off; }\n    focus-ring { off; }'
+    ;;
+esac
+
+{
+  printf '\n%s\n' "$marker"
+  printf '// Active title when generated: %s\n' "$safe_title"
+  printf 'window-rule {\n'
+  printf '    match app-id=%s\n' "$kdl_app_regex"
+
+  if [[ -n "$chosen_scroll_factor" ]]; then
+    printf '    scroll-factor %s\n' "$chosen_scroll_factor"
+    has_rule=1
+  fi
+
+  if [[ -n "$open_line" ]]; then
+    printf '%s\n' "$open_line"
+    has_rule=1
+  fi
+
+  if [[ -n "$width_line" ]]; then
+    printf '%s\n' "$width_line"
+    has_rule=1
+  fi
+
+  if [[ -n "$height_line" ]]; then
+    printf '%s\n' "$height_line"
+    has_rule=1
+  fi
+
+  if [[ -n "$focus_line" ]]; then
+    printf '%s\n' "$focus_line"
+    has_rule=1
+  fi
+
+  if [[ -n "$decor_lines" ]]; then
+    printf '%s\n' "$decor_lines"
+    has_rule=1
+  fi
+
+  printf '}\n'
+  printf '%s\n' "$end_marker"
+} >"$block"
+
+if [[ "$has_rule" -eq 0 ]]; then
+  show_info "No properties selected, so no rule was written."
+  exit 0
+fi
+
+printf '\n' >>"$tmp"
+while IFS= read -r line; do
+  printf '%s\n' "$line" >>"$tmp"
+done <"$block"
+
+mv "$tmp" "$rules_file"
+
+if niri validate >/tmp/niri-window-rule-editor.validate 2>&1; then
+  niri msg action load-config-file >/dev/null 2>&1 || true
+  notify "Updated rule for $app_id"
+else
+  error=$(</tmp/niri-window-rule-editor.validate)
+  show_error "Rule was written, but Niri validation failed:\n\n$error"
+  exit 1
+fi
