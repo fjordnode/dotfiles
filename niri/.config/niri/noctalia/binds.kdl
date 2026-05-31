@@ -2,57 +2,60 @@
 // These replace universal fallbacks with Noctalia IPC equivalents.
 binds {
     Mod+Space hotkey-overlay-title="Application Launcher" {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "launcher" "toggle";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg panel-toggle launcher; else qs ipc -c noctalia-shell call launcher toggle; fi";
     }
     Mod+M hotkey-overlay-title="Task Manager" {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "systemMonitor" "toggle";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg panel-toggle control-center system; else qs ipc -c noctalia-shell call systemMonitor toggle; fi";
     }
     Mod+N hotkey-overlay-title="Notification Center" {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "notifications" "toggleHistory";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg panel-toggle control-center notifications; else qs ipc -c noctalia-shell call notifications toggleHistory; fi";
     }
     Mod+Y hotkey-overlay-title="Browse Wallpapers" {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "wallpaper" "toggle";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg panel-toggle wallpaper; else qs ipc -c noctalia-shell call wallpaper toggle; fi";
     }
-    Mod+Shift+P hotkey-overlay-title="Power Menu" {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "sessionMenu" "toggle";
+    Mod+Shift+W hotkey-overlay-title="Window Rule Editor" {
+        spawn "niri-window-rule-editor";
+    }
+    Super+X hotkey-overlay-title="Power Menu" {
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg panel-toggle session; else qs ipc -c noctalia-shell call sessionMenu toggle; fi";
     }
     Ctrl+Alt+Delete hotkey-overlay-title="Task Manager" {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "systemMonitor" "toggle";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg panel-toggle control-center system; else qs ipc -c noctalia-shell call systemMonitor toggle; fi";
     }
 
     Mod+Alt+L hotkey-overlay-title="Lock Screen" {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "lockScreen" "lock";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg screen-lock; else qs ipc -c noctalia-shell call lockScreen lock; fi";
     }
 
     XF86AudioRaiseVolume allow-when-locked=true {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "volume" "increase";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg volume-up; else qs ipc -c noctalia-shell call volume increase; fi";
     }
     XF86AudioLowerVolume allow-when-locked=true {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "volume" "decrease";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg volume-down; else qs ipc -c noctalia-shell call volume decrease; fi";
     }
     XF86AudioMute allow-when-locked=true {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "volume" "muteOutput";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg volume-mute; else qs ipc -c noctalia-shell call volume muteOutput; fi";
     }
     XF86AudioMicMute allow-when-locked=true {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "volume" "muteInput";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg mic-mute; else qs ipc -c noctalia-shell call volume muteInput; fi";
     }
     XF86AudioPlay allow-when-locked=true {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "media" "playPause";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg media toggle; else qs ipc -c noctalia-shell call media playPause; fi";
     }
     XF86AudioPause allow-when-locked=true {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "media" "playPause";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg media toggle; else qs ipc -c noctalia-shell call media playPause; fi";
     }
     XF86AudioPrev allow-when-locked=true {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "media" "previous";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg media previous; else qs ipc -c noctalia-shell call media previous; fi";
     }
     XF86AudioNext allow-when-locked=true {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "media" "next";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg media next; else qs ipc -c noctalia-shell call media next; fi";
     }
 
     XF86MonBrightnessUp allow-when-locked=true {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "brightness" "increase";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg brightness-up; else qs ipc -c noctalia-shell call brightness increase; fi";
     }
     XF86MonBrightnessDown allow-when-locked=true {
-        spawn "qs" "ipc" "-c" "noctalia-shell" "call" "brightness" "decrease";
+        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg brightness-down; else qs ipc -c noctalia-shell call brightness decrease; fi";
     }
 }

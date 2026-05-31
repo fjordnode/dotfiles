@@ -15,3 +15,11 @@ oh-my-zsh/.oh-my-zsh/custom/plugins/
 oh-my-zsh/.oh-my-zsh/custom/cache/
 tmux/.config/tmux/plugins/
 tmux/.config/tmux/plugins.backup/
+
+# noctalia: plugin source (reinstallable) + scratch colorschemes + runtime state
+noctalia/.config/noctalia/plugins/
+noctalia/.config/noctalia/colorschemes/Test/
+noctalia/.config/noctalia/colorschemes/Test2/
+# niri: editor backups + stale/unincluded fragments
+niri/.config/niri/*.bak
+niri/.config/niri/*.backup.*

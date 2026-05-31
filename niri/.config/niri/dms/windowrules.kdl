@@ -1,57 +1,68 @@
 // DMS Window Rules - Managed by DankMaterialShell
 // Do not edit manually - changes may be overwritten
 
-// @id=wr_1774041568481666122 @name=firefox
-window-rule {
-    match app-id="^firefox$"
-    scroll-factor 0.40
-}
-
-// @id=wr_1774164236445399012 @name=vesktop
-window-rule {
-    match app-id="^vesktop$"
-    open-maximized-to-edges true
-    open-fullscreen true
-}
-
-// @id=wr_1775989148609661429 @name=brave-browser
+// @id=wr_1773606599175981353 @name=brave-browser
 window-rule {
     match app-id="^brave-browser$"
+    open-maximized-to-edges true
+}
+
+// @id=wr_1775854458668344368 @name=brave-browser
+window-rule {
+    match app-id="^brave-browser$"
+    scroll-factor 0.34
+}
+
+// @id=wr_1774341030822836384 @name=kitty
+window-rule {
+    match app-id="^kitty$"
     scroll-factor 1.00
 }
 
-// @id=wr_1775989179715993188 @name=dev.noctalia.noctalia-qs
+// @id=wr_1774202322235419679 @name=vesktop
+window-rule {
+    match app-id="^vesktop$"
+    scroll-factor 0.60
+}
+
+// @id=wr_1774344040966835765 @name=org.mozilla.firefox
+window-rule {
+    match app-id="^org.mozilla.firefox$"
+    scroll-factor 0.60
+}
+
+// @id=wr_1775843411303663500 @name=com.mitchellh.ghostty
+window-rule {
+    match app-id="^com.mitchellh.ghostty$"
+    scroll-factor 0.50
+}
+
+// @id=wr_1775843539862231887 @name=dev.noctalia.noctalia-qs
 window-rule {
     match app-id="^dev.noctalia.noctalia-qs$"
-    scroll-factor 2.00
+    scroll-factor 0.50
 }
 
-// @id=wr_1776719631190014974 @name=brave-origin-nightly
+// @id=wr_1775856775484398908 @name=kitty
 window-rule {
-    match app-id="^brave-origin-nightly$"
-    open-maximized-to-edges true
-}
-
-// @id=wr_1776720187474115457 @name=firefox
-window-rule {
-    match app-id="^firefox$"
-    open-maximized-to-edges true
-}
-
-// @id=wr_1776720201281609587 @name=firefox
-window-rule {
-    match app-id="^firefox$"
-    open-maximized-to-edges true
-}
-
-// @id=wr_1776720709566755338 @name=firefox
-window-rule {
-    match app-id="^firefox$"
+    match app-id="^kitty$"
     scroll-factor 1.00
 }
 
-// @id=wr_1777318500494639365 @name=firefox
+// @id=wr_1775856794250348160 @name=kitty
 window-rule {
-    match app-id="^firefox$"
-    open-maximized-to-edges true
+    match app-id="^kitty$"
+    scroll-factor 1.52
+}
+
+// @id=wr_1775925983130005384 @name=kitty
+window-rule {
+    match app-id="^kitty$"
+    scroll-factor 1.00
+}
+
+// @id=wr_1775940787705106954 @name=kitty
+window-rule {
+    match app-id="^kitty$"
+    scroll-factor 1.51
 }

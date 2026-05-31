@@ -11,17 +11,11 @@ output "eDP-1" {
     scale 1.25
 }
 
-output "HDMI-A-1" {
-    mode "3840x2160@119.880"
-    scale 2
-    position x=0 y=0
-    variable-refresh-rate on-demand=true
-}
 
-cursor {
-    xcursor-theme "Adwaita"
-    xcursor-size 19
-}
+// Stash workspaces for scratchpad tools
+workspace "ndrop"
+workspace "stash"
+workspace "scratch"
 
 gestures {
     hot-corners {
@@ -35,7 +29,8 @@ gestures {
 input {
     keyboard {
         xkb {
-            layout "no"
+            layout "nobrackets"
+            // swap + level3 handled in nobrackets layout directly
         }
         repeat-rate 45
         repeat-delay 300
@@ -60,7 +55,11 @@ input {
     }
 
     mouse {
-        natural-scroll
+        // off
+        // natural-scroll
+        // accel-speed 0.2
+        // accel-profile "flat"
+        // scroll-method "no-scroll"
     }
 
     trackpoint {
@@ -92,7 +91,7 @@ input {
 // Find more information on the wiki:
 // https://github.com/YaLTeR/niri/wiki/Configuration:-Layout
 layout {
-    gaps 2
+    gaps 8
     background-color "transparent"
     // When to center a column when changing focus, options are:
     // - "never", default behavior, focusing an off-screen column will keep at the left
@@ -129,9 +128,9 @@ layout {
     // Alternatively, you can override it with a window rule called
     // `draw-border-with-background`.
     focus-ring {
-        width 2
+        width 1
         active-color   "#ffffff"
-        inactive-color "#585b70"
+        inactive-color "#404040"
         urgent-color   "#cc4444"
     }
     border {
@@ -150,19 +149,40 @@ overview {
     }
 }
 // Autostart
-// Noctalia owns idle, OSD, notifications, and cliphist watchers.
+// spawn-at-startup "swayidle" "-w"  // Disabled: using DMS idle monitoring instead
+spawn-at-startup "wl-paste" "--type" "text" "--watch" "cliphist" "store"
+spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
 spawn-at-startup "wl-paste" "--watch" "yoink-watcher"
 spawn-at-startup "yoink-sync-dms-theme"
 spawn-at-startup "qs" "-d" "-c" "noctalia-shell"
-spawn-at-startup "primary-to-clipboard"
+// spawn-at-startup "primary-to-clipboard"  // disabled 2026-04-18
 // Lid-closed shutdown is handled by the systemd user lid-shutdown.timer.
+// On lid close (battery only): turn off display + wifi + bluetooth; restore on open.
+switch-events {
+    lid-close {
+        spawn "/home/hugo/.local/bin/lid-devices" "close"
+    }
+    lid-open {
+        spawn "/home/hugo/.local/bin/lid-devices" "open"
+    }
+}
 // This line starts waybar, a commonly used bar for Wayland compositors.
 environment {
   XDG_CURRENT_DESKTOP "niri"
-  // Ensure ~/.local/bin is in PATH for spawn commands
-  PATH "/home/hugo/.local/bin:/usr/local/bin:/usr/bin"
-  // Force Firefox to use native Wayland (so DMS window rules match app-id "firefox")
+  XDG_SESSION_DESKTOP "niri"
+  XDG_SESSION_TYPE "wayland"
+  GDK_BACKEND "wayland,x11,*"
+  QT_QPA_PLATFORM "wayland;xcb"
+  SDL_VIDEODRIVER "wayland,x11"
   MOZ_ENABLE_WAYLAND "1"
+  ELECTRON_OZONE_PLATFORM_HINT "wayland"
+  OZONE_PLATFORM "wayland"
+  XCURSOR_THEME "Breeze_Light"
+  XCURSOR_SIZE "26"
+  GTK_USE_PORTAL "1"
+  EDITOR "nvim"
+  VISUAL "nvim"
+  PATH "/home/hugo/.bun/bin:/home/hugo/.local/npm-global/bin:/home/hugo/.opencode/bin:/home/hugo/.local/nvim/bin:/home/hugo/.cargo/bin:/home/hugo/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
 }
 hotkey-overlay {
     skip-at-startup
@@ -222,8 +242,6 @@ window-rule {
 window-rule {
     match app-id=r#"^org\.gnome\."#
     draw-border-with-background false
-    geometry-corner-radius 12
-    clip-to-geometry true
 }
 window-rule {
     match app-id=r#"^gnome-control-center$"#
@@ -257,20 +275,9 @@ window-rule {
     match app-id="kitty"
 }
 window-rule {
-    match app-id="^niri-scratch-kitty$"
-    open-floating true
-    default-column-width { fixed 1000; }
-    default-window-height { fixed 650; }
-    border { width 1; }
-}
-window-rule {
     match app-id=r#"firefox$"# title="^Picture-in-Picture$"
     match app-id="zoom"
     open-floating true
-}
-window-rule {
-    geometry-corner-radius 20
-    clip-to-geometry true
 }
 window-rule {
     match app-id=r#"^org\.omarchy\.idle$"#
@@ -281,17 +288,8 @@ window-rule {
 window-rule {
     match app-id="yoink"
     open-floating true
-    default-column-width { fixed 900; }
-    default-window-height { fixed 650; }
-    draw-border-with-background false
-}
-window-rule {
-    match app-id=r#"^com\.gabm\.satty$"#
-    match app-id=r#"^satty$"#
-    open-floating true
-    open-focused true
-    default-column-width { proportion 0.75; }
-    default-window-height { proportion 0.8; }
+    default-column-width { fixed 1100; }
+    default-window-height { fixed 750; }
 }
 // Screen recording editor (floating TUI)
 window-rule {
@@ -315,71 +313,28 @@ window-rule {
     default-column-width { fixed 900; }
     default-window-height { fixed 560; }
 }
-// Screensaver (cmatrix) — fullscreen, no border
-window-rule {
-    match app-id="screensaver"
-    open-fullscreen true
-    focus-ring { off; }
-    border { off; }
-}
 debug {
     honor-xdg-activation-with-invalid-serial
 }
 
-// Override to disable super+tab
 recent-windows {
     binds {
         Mod+Tab         { next-window scope="output"; }
         Mod+Shift+Tab   { previous-window scope="output"; }
-        Alt+Tab         { next-window scope="output"; }
-        Alt+Shift+Tab   { previous-window scope="output"; }
         Alt+grave       { next-window filter="app-id"; }
         Alt+Shift+grave { previous-window filter="app-id"; }
     }
 }
 
-// Shell-managed includes
+// DMS includes
+include "dms/colors.kdl"
 include "noctalia/layout.kdl"
-
-// Background blur, added for niri 26.04.
-// Clients still need transparency for the blur to be visible.
-blur {
-    passes 3
-    offset 3.0
-    noise 0.02
-    saturation 1.5
-}
-
-window-rule {
-    match app-id=r#"^org\.wezfurlong\.wezterm$"#
-    match app-id="^Alacritty$"
-    match app-id=r#"^com\.mitchellh\.ghostty$"#
-    match app-id="^kitty$"
-
-    background-effect {
-        blur true
-        xray true
-    }
-}
-
-layer-rule {
-    match namespace="^launcher$"
-
-    geometry-corner-radius 8
-    background-effect {
-        blur true
-    }
-}
-
-layer-rule {
-    match namespace="^dms:bar$"
-    match namespace="^quickshell$"
-    match namespace="^quickshell:overview-blur$"
-
-    background-effect {
-        blur true
-    }
-}
+include "noctalia/backdrop.kdl"
+include "dms/alttab.kdl"
+include "dms/outputs.kdl"
+include "dms/cursor.kdl"
+include "dms/windowrules.kdl"
+include "noctalia/windowrules.kdl"
 
 // === Universal Keybindings ===
 // These work with or without DMS. DMS overrides some with its own IPC.
@@ -392,8 +347,14 @@ binds {
 
     // --- Application Launchers ---
     Mod+Return hotkey-overlay-title="Open Terminal" { spawn "kitty"; }
-    Mod+B hotkey-overlay-title="Open Firefox" { spawn "focus-or-open" "firefox" "firefox"; }
-    Mod+S hotkey-overlay-title="Scratchpad Terminal" { spawn "niri-scratch-kitty"; }
+    Mod+S hotkey-overlay-title="Scratchpad" { spawn "/home/hugo/.local/bin/niri-scratchpad-toggle"; }
+    Mod+at hotkey-overlay-title="Special Workspace" { spawn "/home/hugo/.local/bin/niri-special-workspace-toggle"; }
+    Mod+Shift+at hotkey-overlay-title="Send to Special Workspace" { spawn "/home/hugo/.local/bin/niri-special-workspace-send"; }
+    Mod+Ctrl+at hotkey-overlay-title="Remove from Special Workspace" { spawn "/home/hugo/.local/bin/niri-special-workspace-detach"; }
+    Mod+Alt+Shift+S hotkey-overlay-title="Send to Special Workspace" { spawn "/home/hugo/.local/bin/niri-special-workspace-send"; }
+    Mod+B hotkey-overlay-title="Open Firefox" {
+        spawn-sh "id=$(niri msg -j windows | jq -r '.[] | select(.app_id | test(\"firefox$\")) | .id' | head -1); if [ -n \"$id\" ]; then niri msg action focus-window --id $id; else firefox; fi";
+    }
     Mod+Shift+V hotkey-overlay-title="Yoink" { spawn "niri-yoink"; }
 
     // --- Copy/Paste ---
@@ -414,8 +375,8 @@ binds {
     Mod+Up    { focus-window-up; }
     Mod+Right { focus-column-right; }
     Mod+H     { focus-column-left; }
-    Mod+J     { focus-window-down; }
-    Mod+K     { focus-window-up; }
+    Mod+J     { focus-workspace-down; }
+    Mod+K     { focus-workspace-up; }
     Mod+L     { focus-column-right; }
 
     // --- Window Movement ---
@@ -424,8 +385,8 @@ binds {
     Mod+Shift+Up    { move-window-up; }
     Mod+Shift+Right { move-column-right; }
     Mod+Shift+H     { move-column-left; }
-    Mod+Shift+J     { move-window-down; }
-    Mod+Shift+K     { move-window-up; }
+    Mod+Shift+J     { move-workspace-down; }
+    Mod+Shift+K     { move-workspace-up; }
     Mod+Shift+L     { move-column-right; }
 
     // --- Column Navigation ---
@@ -438,8 +399,8 @@ binds {
     Mod+Ctrl+Left  { focus-monitor-left; }
     Mod+Ctrl+Right { focus-monitor-right; }
     Mod+Ctrl+H     { focus-monitor-left; }
-    Mod+Ctrl+J     { focus-monitor-down; }
-    Mod+Ctrl+K     { focus-monitor-up; }
+    Mod+Ctrl+J     { move-column-to-workspace-down; }
+    Mod+Ctrl+K     { move-column-to-workspace-up; }
     Mod+Ctrl+L     { focus-monitor-right; }
 
     // --- Move to Monitor ---
@@ -455,18 +416,18 @@ binds {
     // --- Workspace Navigation ---
     Mod+Page_Down      { focus-workspace-down; }
     Mod+Page_Up        { focus-workspace-up; }
-    Mod+U              { focus-workspace-down; }
-    Mod+I              { focus-workspace-up; }
+    Mod+U              { focus-window-down; }
+    Mod+I              { focus-window-up; }
     Mod+Ctrl+Down { move-column-to-workspace-down; }
     Mod+Ctrl+Up   { move-column-to-workspace-up; }
-    Mod+Ctrl+U         { move-column-to-workspace-down; }
-    Mod+Ctrl+I         { move-column-to-workspace-up; }
+    Mod+Ctrl+U         { move-window-down; }
+    Mod+Ctrl+I         { move-window-up; }
 
     // --- Move Workspaces ---
     Mod+Shift+Page_Down { move-workspace-down; }
     Mod+Shift+Page_Up   { move-workspace-up; }
-    Mod+Shift+U         { move-workspace-down; }
-    Mod+Shift+I         { move-workspace-up; }
+    Mod+Shift+U         { move-column-to-workspace-down; }
+    Mod+Shift+I         { move-column-to-workspace-up; }
 
     // --- Mouse Wheel Navigation ---
     Mod+WheelScrollDown      cooldown-ms=150 { focus-workspace-down; }
@@ -527,13 +488,15 @@ binds {
     XF86Launch1 { screenshot; }
     Ctrl+XF86Launch1 { screenshot-screen; }
     Alt+XF86Launch1 { screenshot-window; }
-    Mod+Shift+S { spawn-sh "grim -g \"$(slurp)\" - | satty --filename - --copy-command wl-copy --output-filename ~/Pictures/Screenshots/\"Screenshot from $(date '+%Y-%m-%d %H-%M-%S').png\""; }
+    Mod+Shift+S { spawn "niri-screenshot-satty"; }
     Mod+Shift+X { screenshot; }
+    Mod+Shift+C { spawn-sh "pkill hyprpicker || hyprpicker -a"; }
+    Mod+Shift+T { spawn-sh "grim -g \"$(slurp)\" - | tesseract - - | wl-copy && notify-send \"OCR\" \"Text copied to clipboard\""; }
 
     // --- Screen Recording ---
-    Mod+Shift+R { spawn-sh "if pgrep -x wf-recorder >/dev/null; then pkill -INT wf-recorder; else geom=$(slurp) || exit 0; mkdir -p ~/Videos/Recordings && wf-recorder -g \"$geom\" -f ~/Videos/Recordings/\"Recording from $(date '+%Y-%m-%d %H-%M-%S').mp4\"; fi"; }
+    Mod+Shift+R { spawn-sh "pgrep -x wf-recorder && pkill -INT wf-recorder || wf-recorder -g \"$(slurp)\" -f ~/Videos/recording-$(date +%Y-%m-%d_%H-%M-%S).mp4"; }
 
-    // --- Audio Controls (fallback; Noctalia overrides with OSD) ---
+    // --- Audio Controls (fallback — DMS overrides with OSD) ---
     XF86AudioRaiseVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "3%+"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "3%-"; }
     XF86AudioMute allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
@@ -543,7 +506,7 @@ binds {
     XF86AudioPrev allow-when-locked=true { spawn "playerctl" "previous"; }
     XF86AudioNext allow-when-locked=true { spawn "playerctl" "next"; }
 
-    // --- Brightness Controls (fallback; Noctalia overrides with OSD) ---
+    // --- Brightness Controls (fallback — DMS overrides with OSD) ---
     XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "set" "5%+"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "set" "5%-"; }
 
@@ -551,21 +514,40 @@ binds {
     Mod+Ctrl+P { power-off-monitors; }
 }
 
-// Noctalia keybinding overrides
+// DMS keybinding overrides (comment out to use niri without DMS)
 include "noctalia/binds.kdl"
 
-// Quickshell windows — float centered
+// DMS Settings — float centered
 window-rule {
-    match app-id=r#"^org\.quickshell$"#
+    match app-id=r#"^dev\.noctalia\.noctalia-qs$"# title="Settings"
     open-floating true
+    default-column-width { fixed 800; }
+    default-window-height { proportion 1.0; }
     border { off; }
     focus-ring { off; }
 }
 
+// Scratchpad terminal
+window-rule {
+    match app-id="scratchpad"
+    open-floating true
+    default-column-width { proportion 0.8; }
+    default-window-height { proportion 0.4; }
+    border {
+        width 3
+        active-color "#cba6f7"
+        inactive-color "#1e1e2e"
+    }
+    focus-ring {
+        width 1
+        active-color "#cba6f7"
+        inactive-color "#1e1e2e"
+    }
+}
+
 // Custom window rules (after DMS to override)
 window-rule {
-    match app-id=r#"^firefox$"#
-    default-column-width { proportion 1.0; }
+    match app-id=r#"^org\.mozilla\.firefox$"#
     open-maximized-to-edges true
     border { off; }
     focus-ring { off; }
@@ -573,9 +555,9 @@ window-rule {
 
 // Firefox file pickers (larger floating)
 window-rule {
-    match app-id=r#"^firefox$"# title=r#"^File Upload"#
-    match app-id=r#"^firefox$"# title=r#"^Save "#
-    match app-id=r#"^firefox$"# title=r#"^Opening "#
+    match app-id=r#"^org\.mozilla\.firefox$"# title=r#"^File Upload"#
+    match app-id=r#"^org\.mozilla\.firefox$"# title=r#"^Save "#
+    match app-id=r#"^org\.mozilla\.firefox$"# title=r#"^Opening "#
     open-floating true
     open-maximized-to-edges false
     default-column-width { proportion 0.5; }
@@ -583,9 +565,9 @@ window-rule {
 }
 // Firefox small dialogs (compact floating)
 window-rule {
-    match app-id=r#"^firefox$"# title=r#"^Clear Recent History"#
-    match app-id=r#"^firefox$"# title=r#"^Removing Cookies"#
-    match app-id=r#"^firefox$"# title=r#"^About "#
+    match app-id=r#"^org\.mozilla\.firefox$"# title=r#"^Clear Recent History"#
+    match app-id=r#"^org\.mozilla\.firefox$"# title=r#"^Removing Cookies"#
+    match app-id=r#"^org\.mozilla\.firefox$"# title=r#"^About "#
     open-floating true
     open-maximized-to-edges false
     default-column-width { fixed 500; }

@@ -1,0 +1,27 @@
+// Noctalia Window Rules
+// Managed by niri-window-rule-editor.
+// Manual edits outside marked blocks are preserved.
+
+window-rule {
+    match title="^Noctalia Window Rule$"
+    match title="^Niri Window Rule$"
+    open-floating true
+    default-column-width { fixed 560; }
+    default-window-height { fixed 420; }
+}
+
+
+
+
+
+
+// @noctalia-rule-editor app-id=brave-origin-nightly
+// Active title when generated: Gaming Forum | ResetEra - Brave Origin
+window-rule {
+    match app-id="^brave\\-origin\\-nightly$"
+    scroll-factor 0.4
+    open-maximized-to-edges true
+    border { off; }
+    focus-ring { off; }
+}
+// @end-noctalia-rule-editor

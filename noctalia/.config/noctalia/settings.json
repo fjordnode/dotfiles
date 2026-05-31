@@ -6,11 +6,11 @@
         "clipboardWrapText": true,
         "customLaunchPrefix": "",
         "customLaunchPrefixEnabled": false,
-        "density": "default",
-        "enableClipPreview": true,
-        "enableClipboardChips": true,
-        "enableClipboardHistory": true,
-        "enableClipboardSmartIcons": true,
+        "density": "compact",
+        "enableClipPreview": false,
+        "enableClipboardChips": false,
+        "enableClipboardHistory": false,
+        "enableClipboardSmartIcons": false,
         "enableSessionSearch": true,
         "enableSettingsSearch": true,
         "enableWindowsSearch": true,
@@ -20,7 +20,7 @@
         "pinnedApps": [
         ],
         "position": "center",
-        "screenshotAnnotationTool": "",
+        "screenshotAnnotationTool": "satty",
         "showCategories": true,
         "showIconBackground": false,
         "sortByMostUsed": true,
@@ -177,6 +177,41 @@
                 {
                     "colorizeSystemIcon": "none",
                     "colorizeSystemText": "none",
+                    "generalTooltipText": "WireGuard Home",
+                    "hideMode": "alwaysExpanded",
+                    "icon": "home",
+                    "iconPosition": "left",
+                    "id": "CustomButton",
+                    "ipcIdentifier": "",
+                    "leftClickExec": "wg-toggle-home",
+                    "leftClickUpdateText": true,
+                    "maxTextLength": {
+                        "horizontal": 10,
+                        "vertical": 10
+                    },
+                    "middleClickExec": "",
+                    "middleClickUpdateText": false,
+                    "parseJson": true,
+                    "rightClickExec": "",
+                    "rightClickUpdateText": false,
+                    "showExecTooltip": false,
+                    "showIcon": true,
+                    "showTextTooltip": false,
+                    "textCollapse": "",
+                    "textCommand": "wg-status-home",
+                    "textIntervalMs": 5000,
+                    "textStream": false,
+                    "wheelDownExec": "",
+                    "wheelDownUpdateText": false,
+                    "wheelExec": "",
+                    "wheelMode": "unified",
+                    "wheelUpExec": "",
+                    "wheelUpUpdateText": false,
+                    "wheelUpdateText": false
+                },
+                {
+                    "colorizeSystemIcon": "none",
+                    "colorizeSystemText": "none",
                     "generalTooltipText": "Kill Switch",
                     "hideMode": "alwaysExpanded",
                     "icon": "shield-check",
@@ -270,7 +305,7 @@
         ],
         "brightnessStep": 5,
         "enableDdcSupport": false,
-        "enforceMinimum": true
+        "enforceMinimum": false
     },
     "calendar": {
         "cards": [
@@ -290,7 +325,7 @@
     },
     "colorSchemes": {
         "darkMode": true,
-        "generationMethod": "rainbow",
+        "generationMethod": "tonal-spot",
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
         "monitorForColors": "",
@@ -380,7 +415,7 @@
         "groupClickAction": "cycle",
         "groupContextMenuMode": "extended",
         "groupIndicatorStyle": "dots",
-        "inactiveIndicators": false,
+        "inactiveIndicators": true,
         "indicatorColor": "primary",
         "indicatorOpacity": 0.6,
         "indicatorThickness": 3,
@@ -395,7 +430,7 @@
         ],
         "pinnedStatic": false,
         "position": "bottom",
-        "showDockIndicator": false,
+        "showDockIndicator": true,
         "showLauncherIcon": false,
         "sitOnFrame": false,
         "size": 1
@@ -404,18 +439,18 @@
         "allowPanelsOnScreenWithoutBar": true,
         "allowPasswordWithFprintd": false,
         "animationDisabled": false,
-        "animationSpeed": 2,
+        "animationSpeed": 3,
         "autoStartAuth": false,
-        "avatarImage": "/home/hugo/.face",
+        "avatarImage": "/home/hugo/train_sky_anime.jpeg",
         "boxRadiusRatio": 1,
         "clockFormat": "hh\\nmm",
         "clockStyle": "custom",
         "compactLockScreen": false,
         "dimmerOpacity": 0.2,
-        "enableBlurBehind": true,
+        "enableBlurBehind": false,
         "enableLockScreenCountdown": true,
         "enableLockScreenMediaControls": false,
-        "enableShadows": true,
+        "enableShadows": false,
         "forceBlackScreenCorners": false,
         "iRadiusRatio": 1,
         "keybinds": {
@@ -453,7 +488,7 @@
         "passwordChars": false,
         "radiusRatio": 1,
         "reverseScroll": false,
-        "scaleRatio": 1.05,
+        "scaleRatio": 1,
         "screenRadiusRatio": 1,
         "shadowDirection": "bottom_right",
         "shadowOffsetX": 2,
@@ -478,7 +513,7 @@
         "wallpaperChange": ""
     },
     "idle": {
-        "customCommands": "[{\"name\":\"Screensaver\",\"timeout\":120,\"command\":\"screensaver-niri\",\"resumeCommand\":\"screensaver-niri --stop\"}]",
+        "customCommands": "[]",
         "enabled": true,
         "fadeDuration": 5,
         "lockCommand": "",
@@ -496,8 +531,8 @@
         "autoLocate": false,
         "firstDayOfWeek": -1,
         "hideWeatherCityName": false,
-        "hideWeatherTimezone": false,
-        "name": "Tokyo",
+        "hideWeatherTimezone": true,
+        "name": "Lindås",
         "showCalendarEvents": true,
         "showCalendarWeather": true,
         "showWeekNumberInCalendar": false,
@@ -515,7 +550,7 @@
         "bluetoothRssiPollingEnabled": false,
         "disableDiscoverability": false,
         "networkPanelView": "wifi",
-        "wifiDetailsViewMode": "list"
+        "wifiDetailsViewMode": "grid"
     },
     "nightLight": {
         "autoSchedule": true,
@@ -662,11 +697,7 @@
             },
             {
                 "enabled": true,
-                "id": "discord"
-            },
-            {
-                "enabled": true,
-                "id": "ghostty"
+                "id": "qt"
             },
             {
                 "enabled": true,
@@ -674,11 +705,19 @@
             },
             {
                 "enabled": true,
-                "id": "hyprland"
+                "id": "niri"
             },
             {
                 "enabled": true,
-                "id": "qt"
+                "id": "ghostty"
+            },
+            {
+                "enabled": true,
+                "id": "discord"
+            },
+            {
+                "enabled": true,
+                "id": "hyprland"
             },
             {
                 "enabled": true,
@@ -686,11 +725,15 @@
             },
             {
                 "enabled": true,
+                "id": "steam"
+            },
+            {
+                "enabled": true,
                 "id": "telegram"
             },
             {
                 "enabled": true,
-                "id": "niri"
+                "id": "wezterm"
             },
             {
                 "enabled": true,
@@ -702,13 +745,13 @@
     "ui": {
         "boxBorderEnabled": false,
         "fontDefault": "Sans Serif",
-        "fontDefaultScale": 1,
+        "fontDefaultScale": 0.95,
         "fontFixed": "monospace",
         "fontFixedScale": 1,
         "panelBackgroundOpacity": 0.93,
         "panelsAttachedToBar": true,
         "scrollbarAlwaysVisible": true,
-        "settingsPanelMode": "attached",
+        "settingsPanelMode": "centered",
         "settingsPanelSideBarCardStyle": false,
         "tooltipsEnabled": true,
         "translucentWidgets": false
@@ -727,12 +770,12 @@
         "monitorDirectories": [
             {
                 "directory": "/home/hugo/Pictures/Wallpapers",
-                "name": "HDMI-A-1",
+                "name": "eDP-1",
                 "wallpaper": ""
             }
         ],
         "overviewBlur": 0.4,
-        "overviewEnabled": false,
+        "overviewEnabled": true,
         "overviewTint": 0.6,
         "panelPosition": "follow_bar",
         "randomIntervalSec": 300,
@@ -740,7 +783,7 @@
         "showHiddenFiles": false,
         "skipStartupTransition": false,
         "solidColor": "#1a1a2e",
-        "sortOrder": "date_asc",
+        "sortOrder": "name",
         "transitionDuration": 1500,
         "transitionEdgeSmoothness": 0.05,
         "transitionType": [
@@ -754,12 +797,12 @@
         "useOriginalImages": false,
         "useSolidColor": false,
         "useWallhaven": true,
-        "viewMode": "browse",
+        "viewMode": "single",
         "wallhavenApiKey": "",
         "wallhavenCategories": "111",
         "wallhavenOrder": "desc",
         "wallhavenPurity": "100",
-        "wallhavenQuery": "hdr dark",
+        "wallhavenQuery": "vibes",
         "wallhavenRatios": "",
         "wallhavenResolutionHeight": "",
         "wallhavenResolutionMode": "atleast",
