@@ -134,7 +134,7 @@ fi
 # This ensures OUR configs are in place first
 cd "$DEST"
 PKGS=""
-PKG_DIRS=(zsh tmux git nvim shell shell-scripts kitty starship eza bat opencode niri)
+PKG_DIRS=(zsh tmux git nvim shell shell-scripts kitty starship eza bat opencode niri noctalia)
 if [ "$OS" = "linux" ]; then
   PKG_DIRS+=(vpn-split)
 fi
