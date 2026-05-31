@@ -1,36 +1,24 @@
 #!/bin/bash
-set -euo pipefail
-
-# Converts the active Kitty theme to yoink's theme.toml format.
-# The script name is kept for existing autostart configs.
+# Converts DMS kitty theme (dank-theme.conf) to yoink's theme.toml format
+SRC="$HOME/.config/kitty/dank-theme.conf"
 DEST="$HOME/.config/yoink/theme.toml"
-SRC=""
 
-for candidate in \
-    "$HOME/.config/kitty/current-theme.conf" \
-    "$HOME/.config/kitty/themes/noctalia.conf" \
-    "$HOME/.config/kitty/dank-theme.conf"
-do
-    if [ -f "$candidate" ]; then
-        SRC="$candidate"
-        break
-    fi
-done
-
-[ -n "$SRC" ] || { echo "No Kitty theme found"; exit 1; }
-mkdir -p "$(dirname "$DEST")"
+[ -f "$SRC" ] || { echo "No dank-theme.conf found"; exit 1; }
 
 {
-    accent=$(awk '$1 == "active_border_color" { print $2; found=1; exit } $1 == "color4" { color4=$2 } END { if (!found && color4) print color4 }' "$SRC")
-    [ -n "$accent" ] || accent="#7aa2f7"
-    printf 'accent = "%s"\n' "$accent"
+    # Extract accent from color6 (DMS primary)
+    accent=$(grep '^color6 ' "$SRC" | awk '{print $2}')
+    echo "accent = \"$accent\""
 
-    while read -r key val _; do
-        [ -n "${key:-}" ] || continue
-        [[ "$key" == \#* ]] && continue
+    # Map kitty keys to yoink theme.toml
+    while IFS= read -r line; do
+        [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+        [[ "$line" =~ ^# ]] && continue
+        key=$(echo "$line" | awk '{print $1}')
+        val=$(echo "$line" | awk '{print $2}')
         case "$key" in
             cursor|foreground|background|selection_foreground|selection_background|color[0-9]|color1[0-5])
-                printf '%s = "%s"\n' "$key" "$val"
+                echo "$key = \"$val\""
                 ;;
         esac
     done < "$SRC"
