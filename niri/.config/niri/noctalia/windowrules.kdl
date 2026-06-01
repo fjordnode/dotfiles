@@ -25,3 +25,14 @@ window-rule {
     focus-ring { off; }
 }
 // @end-noctalia-rule-editor
+
+
+// @noctalia-rule-editor app-id=org.mozilla.firefox
+// Active title when generated: Problem loading page — Mozilla Firefox
+window-rule {
+    match app-id="^org\\.mozilla\\.firefox$"
+    scroll-factor 1
+    open-maximized true
+    open-maximized-to-edges true
+}
+// @end-noctalia-rule-editor

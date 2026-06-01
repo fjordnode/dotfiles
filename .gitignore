@@ -4,6 +4,11 @@
 .cache/
 *.swp
 *.swo
+*.bak
+*.backup
+*.backup.*
+*.orig
+*.tmp
 
 # host-specific overrides
 .zshrc.local
@@ -15,6 +20,7 @@ oh-my-zsh/.oh-my-zsh/custom/plugins/
 oh-my-zsh/.oh-my-zsh/custom/cache/
 tmux/.config/tmux/plugins/
 tmux/.config/tmux/plugins.backup/
+opencode/
 
 # noctalia: plugin source (reinstallable) + scratch colorschemes + runtime state
 noctalia/.config/noctalia/plugins/

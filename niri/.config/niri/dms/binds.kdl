@@ -79,15 +79,15 @@ binds {
 
     // --- Brightness Controls (DMS OSD) ---
     XF86MonBrightnessUp allow-when-locked=true {
-        spawn "dms" "ipc" "call" "brightness" "increment" "5" "";
+        spawn "brightnessctl" "--quiet" "set" "+5%";
     }
     XF86MonBrightnessDown allow-when-locked=true {
-        spawn "dms" "ipc" "call" "brightness" "decrement" "5" "";
+        spawn "brightnessctl" "--quiet" "set" "5%-";
     }
     Mod+XF86MonBrightnessUp {
-        spawn "dms" "ipc" "call" "brightness" "increment" "10" "leds:kbd_backlight";
+        spawn "brightnessctl" "--quiet" "--device" "kbd_backlight" "set" "+10%";
     }
     Mod+XF86MonBrightnessDown {
-        spawn "dms" "ipc" "call" "brightness" "decrement" "10" "leds:kbd_backlight";
+        spawn "brightnessctl" "--quiet" "--device" "kbd_backlight" "set" "10%-";
     }
 }

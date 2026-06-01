@@ -12,6 +12,10 @@ output "eDP-1" {
 }
 
 
+// Primary startup workspaces.
+workspace "ws1"
+workspace "ws2"
+
 // Stash workspaces for scratchpad tools
 workspace "ndrop"
 workspace "stash"
@@ -156,6 +160,8 @@ spawn-at-startup "wl-paste" "--watch" "yoink-watcher"
 spawn-at-startup "yoink-sync-dms-theme"
 // spawn-at-startup "qs" "-d" "-c" "noctalia-shell"  // v4; v5 is now the boot default
 spawn-at-startup "noctalia-v5"
+spawn-at-startup "firefox"
+spawn-at-startup "kitty" "--class" "startup-kitty"
 // spawn-at-startup "primary-to-clipboard"  // disabled 2026-04-18
 // Lid-closed shutdown is handled by the systemd user lid-shutdown.timer.
 // On lid close (battery only): turn off display + wifi + bluetooth; restore on open.
@@ -363,6 +369,22 @@ binds {
     Mod+V { spawn "niri-paste"; }
     Mod+X { spawn "wtype" "-M" "ctrl" "-k" "x"; }
 
+    // --- Mac CMD layer (Right Cmd = Alt) ---
+    // Right Cmd behaves like macOS CMD: niri-mackey sends Ctrl+<key> in apps and
+    // Ctrl+Shift+<key> in terminals (so Cmd+C copies instead of sending SIGINT).
+    Alt+C hotkey-overlay-title="Copy (Cmd+C)"        { spawn "niri-mackey" "c"; }
+    Alt+V hotkey-overlay-title="Paste (Cmd+V)"       { spawn "niri-mackey" "v"; }
+    Alt+X hotkey-overlay-title="Cut (Cmd+X)"         { spawn "niri-mackey" "x"; }
+    Alt+A hotkey-overlay-title="Select All (Cmd+A)"  { spawn "niri-mackey" "a"; }
+    Alt+Z hotkey-overlay-title="Undo (Cmd+Z)"        { spawn "niri-mackey" "z"; }
+    Alt+F hotkey-overlay-title="Find (Cmd+F)"        { spawn "niri-mackey" "f"; }
+    Alt+T hotkey-overlay-title="New Tab (Cmd+T)"     { spawn "niri-mackey" "t"; }
+    Alt+W hotkey-overlay-title="Close Tab (Cmd+W)"   { spawn "niri-mackey" "w"; }
+    // Redo: Ctrl+Shift+Z everywhere (no-op in terminals, harmless).
+    Alt+Shift+Z hotkey-overlay-title="Redo (Cmd+Shift+Z)" { spawn "wtype" "-M" "ctrl" "-M" "shift" "-k" "z"; }
+    // L: plain Ctrl+L everywhere -> focus URL bar in browsers, clear screen in terminals.
+    Alt+L hotkey-overlay-title="URL bar / Clear (Cmd+L)"  { spawn "wtype" "-M" "ctrl" "-k" "l"; }
+
     // --- Window Management ---
     Mod+Q repeat=false { close-window; }
     Mod+F { maximize-column; }
@@ -508,8 +530,10 @@ binds {
     XF86AudioNext allow-when-locked=true { spawn "playerctl" "next"; }
 
     // --- Brightness Controls (fallback — DMS overrides with OSD) ---
-    XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "set" "5%+"; }
-    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "set" "5%-"; }
+    XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "--quiet" "set" "+5%"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--quiet" "set" "5%-"; }
+    Mod+XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "--quiet" "--device" "kbd_backlight" "set" "+10%"; }
+    Mod+XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--quiet" "--device" "kbd_backlight" "set" "10%-"; }
 
     // --- Power ---
     Mod+Ctrl+P { power-off-monitors; }
@@ -548,7 +572,18 @@ window-rule {
 
 // Custom window rules (after DMS to override)
 window-rule {
+    match at-startup=true app-id=r#"^org\.mozilla\.firefox$"#
+    open-on-workspace "ws1"
+}
+
+window-rule {
+    match at-startup=true app-id=r#"^startup-kitty$"#
+    open-on-workspace "ws2"
+}
+
+window-rule {
     match app-id=r#"^org\.mozilla\.firefox$"#
+    open-maximized true
     open-maximized-to-edges true
     border { off; }
     focus-ring { off; }

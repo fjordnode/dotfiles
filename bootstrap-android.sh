@@ -2,7 +2,7 @@
 # dotfiles bootstrap: Termux Android => apply my configs
 set -Eeuo pipefail
 
-REPO="${REPO:-https://github.com/Deepseek1/dotfiles.git}"
+REPO="${REPO:-https://github.com/fjordnode/dotfiles.git}"
 DEST="${DEST:-$HOME/dotfiles}"
 
 # Flags you can override
@@ -10,8 +10,25 @@ INSTALL_OHMYPOSH="${INSTALL_OHMYPOSH:-1}"
 INSTALL_OMZ="${INSTALL_OMZ:-1}"
 FULL_INSTALL="${FULL_INSTALL:-1}"
 SETUP_STORAGE="${SETUP_STORAGE:-1}"
+PROFILE="${PROFILE:-cli}"
 
 say() { printf '[bootstrap-android] %s\n' "$*"; }
+
+packages_for_profile() {
+  case "$PROFILE" in
+    cli)
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi
+      ;;
+    dev)
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi claude
+      ;;
+    *)
+      say "Unsupported Termux PROFILE=$PROFILE"
+      say "Supported Termux profiles: cli, dev"
+      exit 1
+      ;;
+  esac
+}
 
 # Ensure we're running in Termux
 if [[ ! -d "/data/data/com.termux" ]]; then
@@ -77,7 +94,12 @@ fi
 # 3) Apply dotfiles with stow BEFORE installing oh-my-zsh
 cd "$DEST"
 PKGS=""
-for d in zsh tmux git nvim shell kitty oh-my-posh eza; do 
+PKG_DIRS=()
+while IFS= read -r pkg; do
+  PKG_DIRS+=("$pkg")
+done < <(packages_for_profile)
+
+for d in "${PKG_DIRS[@]}"; do
   if [ -d "$d" ]; then
     PKGS="$PKGS $d"
   fi

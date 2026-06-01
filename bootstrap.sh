@@ -10,8 +10,37 @@ INSTALL_STARSHIP="${INSTALL_STARSHIP:-1}"
 INSTALL_OMZ="${INSTALL_OMZ:-1}"
 SET_DEFAULT_SHELL="${SET_DEFAULT_SHELL:-1}"
 FULL_INSTALL="${FULL_INSTALL:-1}"
+PROFILE="${PROFILE:-cli}"
 
 say() { printf '[bootstrap] %s\n' "$*"; }
+
+packages_for_profile() {
+  case "$PROFILE" in
+    cli)
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi
+      ;;
+    dev)
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi claude
+      ;;
+    desktop-niri)
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi claude kitty ghostty niri noctalia noctalia-v5
+      ;;
+    desktop-hypr)
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi claude kitty ghostty hypr noctalia noctalia-v5
+      ;;
+    desktop)
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi claude kitty ghostty niri hypr noctalia noctalia-v5
+      ;;
+    asahi)
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi claude kitty ghostty niri hypr noctalia noctalia-v5 shell-scripts vpn-split
+      ;;
+    *)
+      say "Unknown PROFILE=$PROFILE"
+      say "Supported profiles: cli, dev, desktop-niri, desktop-hypr, desktop, asahi"
+      exit 1
+      ;;
+  esac
+}
 
 # Detect OS
 OS="unknown"
@@ -134,10 +163,10 @@ fi
 # This ensures OUR configs are in place first
 cd "$DEST"
 PKGS=""
-PKG_DIRS=(zsh tmux git nvim shell shell-scripts kitty starship eza bat opencode niri noctalia noctalia-v5)
-if [ "$OS" = "linux" ]; then
-  PKG_DIRS+=(vpn-split)
-fi
+PKG_DIRS=()
+while IFS= read -r pkg; do
+  PKG_DIRS+=("$pkg")
+done < <(packages_for_profile)
 
 for d in "${PKG_DIRS[@]}"; do
   if [ -d "$d" ]; then

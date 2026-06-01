@@ -1,0 +1,31 @@
+#!/bin/bash
+# niri-mackey <key>
+# Translate a macOS-style CMD+<key> into the right Ctrl combo for the focused app.
+# In terminals send Ctrl+Shift+<key> (the terminal copy/paste/tab convention) so we
+# never fire SIGINT (Ctrl+C), SIGTSTP (Ctrl+Z) or readline prefixes; elsewhere send
+# plain Ctrl+<key>. Mirrors the focus-detection used by niri-copy / niri-paste.
+key="${1:?usage: niri-mackey <key>}"
+
+is_term() {
+    case "$1" in
+        kitty|scratchpad|hypr-scratchpad|Alacritty|foot|com.mitchellh.ghostty|org.wezfurlong.wezterm)
+            return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
+    app=$(hyprctl activewindow -j 2>/dev/null | jq -r '.class // ""')
+    if is_term "$app"; then
+        hyprctl dispatch sendshortcut "CTRL SHIFT, ${key^^},"
+    else
+        hyprctl dispatch sendshortcut "CTRL, ${key^^},"
+    fi
+else
+    app=$(niri msg -j focused-window 2>/dev/null | jq -r '.app_id // ""')
+    if is_term "$app"; then
+        wtype -M ctrl -M shift -k "$key"
+    else
+        wtype -M ctrl -k "$key"
+    fi
+fi

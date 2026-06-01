@@ -1,12 +1,43 @@
-# Dotfiles
+# Dotfiles Core
 
-Personal development environment configuration files managed with GNU Stow.
+Portable CLI/development configuration managed with GNU Stow. The default install is safe for headless systems, SSH-only hosts, containers, and general Linux/macOS machines.
+
+Desktop/Wayland configuration is opt-in through profiles and should eventually live in a separate `dotfiles-desktop` repo. Fedora Asahi hardware/system recovery should stay in `asahi-fedora-restore`.
 
 ## Quick Install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/fjordnode/dotfiles/main/bootstrap.sh | bash
 ```
+
+The default profile is `cli` and only stows portable terminal/dev config.
+
+### Profiles
+
+```bash
+# Portable CLI/dev config only
+PROFILE=cli bash bootstrap.sh
+
+# CLI/dev plus AI tool config
+PROFILE=dev bash bootstrap.sh
+
+# Explicit desktop installs
+PROFILE=desktop-niri bash bootstrap.sh
+PROFILE=desktop-hypr bash bootstrap.sh
+PROFILE=desktop bash bootstrap.sh
+
+# Transitional Asahi profile; system recovery belongs in asahi-fedora-restore
+PROFILE=asahi bash bootstrap.sh
+```
+
+Profile packages:
+
+- `cli`: `zsh`, `tmux`, `git`, `nvim`, `starship`, `eza`, `bat`, `yazi`
+- `dev`: `cli` plus `claude`
+- `desktop-niri`: `dev` plus `kitty`, `ghostty`, `niri`, `noctalia`, `noctalia-v5`
+- `desktop-hypr`: `dev` plus `kitty`, `ghostty`, `hypr`, `noctalia`, `noctalia-v5`
+- `desktop`: both desktop compositor configs
+- `asahi`: transitional profile with desktop config, `shell-scripts`, and `vpn-split`
 
 ### Termux (Android)
 
@@ -62,10 +93,11 @@ bash bootstrap-android.sh
 - **nvim** - Neovim configuration with Lazy.nvim and plugins
 - **tmux** - Terminal multiplexer configuration  
 - **git** - Git configuration and aliases
-- **bat** - Syntax highlighting with Catppuccin themes
+- **bat/eza/yazi** - CLI tool configuration
 - **starship** - Cross-shell prompt
-- **shell** - Additional shell utilities (rm-safety)
-- **vpn-split** - Linux-only WireGuard split tunneling, `novpn`, and kill-switch scripts
+- **claude** - AI tool configuration, installed by `PROFILE=dev` or desktop profiles
+- **niri/hypr/noctalia** - Desktop-only config, installed only by explicit desktop profiles
+- **vpn-split/shell-scripts** - Transitional Linux/Asahi-specific helpers, installed only by `PROFILE=asahi`
 
 ## Directory Structure
 
@@ -85,8 +117,15 @@ dotfiles/
 ├── starship/
 │   └── .config/
 │       └── starship.toml
-└── shell/
-    └── .rm-safety.sh
+├── bat/
+├── eza/
+├── yazi/
+├── claude/            # dev profile
+├── niri/              # desktop profiles
+├── hypr/              # desktop profiles
+├── noctalia*/         # desktop profiles
+├── shell-scripts/     # asahi transitional profile
+└── vpn-split/         # asahi transitional profile
 ```
 
 ## Managing Dotfiles
@@ -109,7 +148,7 @@ To update your dotfiles on another machine:
 ```bash
 cd ~/dotfiles
 git pull
-stow -R -t "$HOME" zsh tmux git nvim shell kitty starship eza vpn-split
+PROFILE=cli ./bootstrap.sh
 ```
 
 ## Customization
@@ -130,6 +169,9 @@ INSTALL_STARSHIP=0 bash bootstrap.sh
 
 # Skip setting zsh as default shell
 SET_DEFAULT_SHELL=0 bash bootstrap.sh
+
+# Install a specific profile
+PROFILE=desktop-niri bash bootstrap.sh
 ```
 
 ### Adding New Configs
@@ -138,7 +180,7 @@ To add a new program's configuration:
 
 1. Create a new directory in `~/dotfiles`
 2. Mirror the expected structure from `$HOME`
-3. Add to stow command in bootstrap.sh
+3. Add it to the correct profile in `bootstrap.sh`
 
 Example for adding vim config:
 ```bash
@@ -152,7 +194,7 @@ git commit -m "Add vim configuration"
 
 ### VPN Split Tunnel Package
 
-The `vpn-split` package is Linux-specific. It stows:
+The `vpn-split` package is Linux-specific and is not part of the default `cli` profile. It stows:
 
 - `~/.local/bin/novpn`
 - `~/.local/bin/wg-split-up`
@@ -186,11 +228,12 @@ echo '26642 novpn' | sudo tee -a /etc/iproute2/rt_tables
 
 ### Stow Conflicts
 
-If stow reports conflicts, remove the existing files first:
+If stow reports conflicts, move the existing files aside first:
 ```bash
-rm ~/.zshrc ~/.tmux.conf  # etc
+mv ~/.zshrc ~/.zshrc.backup
+mv ~/.tmux.conf ~/.tmux.conf.backup
 cd ~/dotfiles
-stow -t "$HOME" zsh tmux git nvim shell kitty starship eza vpn-split
+PROFILE=cli ./bootstrap.sh
 ```
 
 ### Missing Plugins

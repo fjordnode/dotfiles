@@ -43,7 +43,7 @@ fi
 [ -f ~/.env ] && [ -r ~/.env ] && source ~/.env
 
 # Source oh-my-zsh
-source "$ZSH/oh-my-zsh.sh"
+[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
 
 # Editor and terminal settings
 export EDITOR=nvim
@@ -58,37 +58,8 @@ alias la='ls -A'
 alias v='nvim'
 alias zv='znvim'
 alias mosh="MOSH_TITLE_NOPREFIX=1 mosh --predict=never"
-# Cloudflare Tunnel management
-TUNNEL_ID="ca41a301-707f-48bf-bfc2-5181247d8875"
-CF_CONFIG="/mnt/cache/appdata/cloudflared/config.yml"
-
-tunnel-add() {
-  if grep -q "hostname: $1.denshi.dev" "$CF_CONFIG" 2>/dev/null; then
-    echo "⚠️  $1.denshi.dev already exists in config.yml"
-    return 1
-  fi
-  docker run --rm --user 0:0 -v /mnt/cache/appdata/cloudflared:/root/.cloudflared cloudflare/cloudflared:latest tunnel route dns $TUNNEL_ID "$1.denshi.dev"
-  echo ""
-  echo "✅ DNS added. Paste this into $CF_CONFIG (before the catch-all):"
-  echo ""
-  echo "  - hostname: $1.denshi.dev"
-  echo "    service: https://traefik:443"
-  echo "    originRequest:"
-  echo "      noTLSVerify: true"
-  echo ""
-  echo "Then run: docker restart cloudflared"
-}
-
-tunnel-remove() {
-  echo "To remove $1.denshi.dev:"
-  echo ""
-  echo "1. Remove the entry from $CF_CONFIG"
-  echo "2. Run: docker restart cloudflared"
-  echo "3. Delete the CNAME record in Cloudflare dashboard (DNS → $1.denshi.dev)"
-  echo ""
-  echo "   Or via API:"
-  echo "   curl -X DELETE \"https://api.cloudflare.com/client/v4/zones/ZONE_ID/dns_records/RECORD_ID\""
-}
+# Host-specific helpers
+[ -f "$HOME/.config/zsh/host.zsh" ] && source "$HOME/.config/zsh/host.zsh"
 
 # Terminal cleanup - prevents garbage output after SSH disconnects
 cleanup_terminal() {
@@ -137,18 +108,18 @@ bindkey -M emacs '^[[A' history-substring-search-up
 bindkey -M emacs '^[[B' history-substring-search-down
 
 # Load custom functions
-source "$HOME/.local/share/shell-functions.sh"
+[ -f "$HOME/.local/share/shell-functions.sh" ] && source "$HOME/.local/share/shell-functions.sh"
 [ -f ~/.local/bin/rm-safety ] && source ~/.local/bin/rm-safety
-source "$HOME/dotfiles/shell/functions/dotfiles-check.zsh"
-source "$HOME/dotfiles/shell/functions/fuzzy-listing.zsh"
-source "$HOME/dotfiles/shell/functions/fuzzy-nvim.zsh"
+[ -f "$HOME/dotfiles/shell/functions/dotfiles-check.zsh" ] && source "$HOME/dotfiles/shell/functions/dotfiles-check.zsh"
+[ -f "$HOME/dotfiles/shell/functions/fuzzy-listing.zsh" ] && source "$HOME/dotfiles/shell/functions/fuzzy-listing.zsh"
+[ -f "$HOME/dotfiles/shell/functions/fuzzy-nvim.zsh" ] && source "$HOME/dotfiles/shell/functions/fuzzy-nvim.zsh"
 
 # Completion settings
 setopt globdots
 zstyle ':completion:*' special-dirs false
 
 # Starship prompt
-eval "$(starship init zsh)"
+command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
 
 # Theme reload via FIFO — safe alternative to SIGUSR1 (won't kill tmux/TUIs)
 _theme_reload_setup() {
@@ -180,12 +151,10 @@ precmd() {
 # Default file permissions
 umask 002
 
-# opencode
-export PATH=/home/hugo/.opencode/bin:$PATH
 export PATH="$HOME/.local/npm-global/bin:$PATH"
 
 # bun completions
-[ -s "/home/hugo/.bun/_bun" ] && source "/home/hugo/.bun/_bun"
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
 # bun
 export BUN_INSTALL="$HOME/.bun"

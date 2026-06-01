@@ -53,9 +53,15 @@ binds {
     }
 
     XF86MonBrightnessUp allow-when-locked=true {
-        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg brightness-up; else qs ipc -c noctalia-shell call brightness increase; fi";
+        spawn "brightnessctl" "--quiet" "set" "+5%";
     }
     XF86MonBrightnessDown allow-when-locked=true {
-        spawn-sh "if pgrep -x noctalia >/dev/null; then \"$HOME/.local/noctalia-v5/bin/noctalia\" msg brightness-down; else qs ipc -c noctalia-shell call brightness decrease; fi";
+        spawn "brightnessctl" "--quiet" "set" "5%-";
+    }
+    Mod+XF86MonBrightnessUp allow-when-locked=true {
+        spawn "brightnessctl" "--quiet" "--device" "kbd_backlight" "set" "+10%";
+    }
+    Mod+XF86MonBrightnessDown allow-when-locked=true {
+        spawn "brightnessctl" "--quiet" "--device" "kbd_backlight" "set" "10%-";
     }
 }
