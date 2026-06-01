@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Switch the running Noctalia shell to the v5 build (manual install at
+# ~/.local/noctalia-v5). v4 (qs -d -c noctalia-shell) starts on boot; this
+# stops it and launches v5 against its own config + state dirs.
+set -uo pipefail
+
+V5_BIN="$HOME/.local/noctalia-v5/bin/noctalia"
+
+if [ ! -x "$V5_BIN" ]; then
+    printf 'noctalia v5 binary not found at %s\n' "$V5_BIN" >&2
+    printf 'Install the v5 release there first (it is not tracked in dotfiles).\n' >&2
+    exit 1
+fi
+
+# Stop v4 if running; don't gate the launch on whether anything was killed.
+pkill -f 'qs -d -c noctalia-shell' || true
+
+exec env \
+    NOCTALIA_CONFIG_HOME="$HOME/.config/noctalia-v5-test" \
+    NOCTALIA_STATE_HOME="$HOME/.local/state/noctalia-v5-test" \
+    "$V5_BIN"
