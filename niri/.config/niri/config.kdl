@@ -154,7 +154,8 @@ spawn-at-startup "wl-paste" "--type" "text" "--watch" "cliphist" "store"
 spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
 spawn-at-startup "wl-paste" "--watch" "yoink-watcher"
 spawn-at-startup "yoink-sync-dms-theme"
-spawn-at-startup "qs" "-d" "-c" "noctalia-shell"
+// spawn-at-startup "qs" "-d" "-c" "noctalia-shell"  // v4; v5 is now the boot default
+spawn-at-startup "noctalia-v5"
 // spawn-at-startup "primary-to-clipboard"  // disabled 2026-04-18
 // Lid-closed shutdown is handled by the systemd user lid-shutdown.timer.
 // On lid close (battery only): turn off display + wifi + bluetooth; restore on open.
