@@ -11,28 +11,43 @@ INSTALL_OMZ="${INSTALL_OMZ:-1}"
 SET_DEFAULT_SHELL="${SET_DEFAULT_SHELL:-1}"
 FULL_INSTALL="${FULL_INSTALL:-1}"
 PROFILE="${PROFILE:-cli}"
+INSTALL_NOCTALIA_V5_DEPS="${INSTALL_NOCTALIA_V5_DEPS:-0}"
 
 say() { printf '[bootstrap] %s\n' "$*"; }
 
+profile_is() {
+  local p
+  for p in "$@"; do
+    [ "$PROFILE" = "$p" ] && return 0
+  done
+  return 1
+}
+
+wants_desktop() { profile_is desktop-niri desktop-hypr desktop asahi; }
+wants_niri() { profile_is desktop-niri desktop asahi; }
+wants_hypr() { profile_is desktop-hypr desktop asahi; }
+wants_noctalia_v5_deps() { [ "$INSTALL_NOCTALIA_V5_DEPS" = 1 ] && wants_desktop; }
+
+# Keep this package list in sync with wants_desktop/wants_niri/wants_hypr above.
 packages_for_profile() {
   case "$PROFILE" in
     cli)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts
       ;;
     dev)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi claude
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts claude
       ;;
     desktop-niri)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi claude kitty ghostty niri noctalia noctalia-v5
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts claude kitty ghostty niri noctalia noctalia-v5
       ;;
     desktop-hypr)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi claude kitty ghostty hypr noctalia noctalia-v5
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts claude kitty ghostty hypr noctalia noctalia-v5
       ;;
     desktop)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi claude kitty ghostty niri hypr noctalia noctalia-v5
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts claude kitty ghostty niri hypr noctalia noctalia-v5
       ;;
     asahi)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi claude kitty ghostty niri hypr noctalia noctalia-v5 shell-scripts vpn-split
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts claude kitty ghostty niri hypr noctalia noctalia-v5 vpn-split
       ;;
     *)
       say "Unknown PROFILE=$PROFILE"
@@ -59,6 +74,11 @@ fi
 install_pkgs() {
   local PKGS_CORE="bash git stow zsh curl wget unzip"
   local PKGS_DEV=""
+  local PKGS_DESKTOP_COMMON=""
+  local PKGS_DESKTOP_OPTIONAL=""
+  local PKGS_NIRI=""
+  local PKGS_HYPR=""
+  local PKGS_NOCTALIA_V5_DEPS=""
   
   # Determine if we need sudo
   local CMD_PREFIX=""
@@ -84,6 +104,9 @@ install_pkgs() {
       PKGS_DEV="tmux tree gh ripgrep fd neovim htop fzf bat eza zoxide"
       say "Installing packages with Homebrew..."
       brew install $PKGS_CORE $PKGS_DEV
+      if wants_desktop; then
+        say "Desktop profiles are Wayland/Linux-oriented; skipping desktop packages on macOS."
+      fi
     else
       say "Installing core packages with Homebrew..."
       brew install $PKGS_CORE
@@ -98,24 +121,96 @@ install_pkgs() {
         PKGS_DEV_CRITICAL="tmux tree openssh-client less file build-essential procps htop jq python3 python3-pip fzf"
         # Optional packages (might not be in older repos - bat, eza, zoxide, gh, ripgrep, fd-find, neovim)
         PKGS_DEV_OPTIONAL="gh ripgrep fd-find neovim bat eza zoxide"
+        PKGS_DESKTOP_COMMON="wl-clipboard brightnessctl playerctl pavucontrol network-manager bluez"
+        PKGS_DESKTOP_OPTIONAL="wtype cliphist kitty firefox satty ghostty"
+        PKGS_NIRI="niri xwayland-satellite xdg-desktop-portal-gnome xdg-desktop-portal-gtk"
+        PKGS_HYPR="hyprland hyprlock hypridle xdg-desktop-portal-hyprland"
+        PKGS_NOCTALIA_V5_DEPS="meson g++ just libwayland-dev wayland-protocols libegl-dev libgles-dev libfreetype-dev libfontconfig-dev libcairo2-dev libpango1.0-dev libharfbuzz-dev libxkbcommon-dev libglib2.0-dev libsdbus-c++-dev libpipewire-0.3-dev libpam0g-dev libpolkit-agent-1-dev libpolkit-gobject-1-dev libcurl4-openssl-dev libwebp-dev librsvg2-dev libqalculate-dev libxml2-dev libjemalloc-dev"
 
         $CMD_PREFIX apt update && $CMD_PREFIX apt install -y $PKGS_CORE $PKGS_DEV_CRITICAL
         # Try optional packages - continue even if some fail
         $CMD_PREFIX apt install -y $PKGS_DEV_OPTIONAL 2>/dev/null || say "Some optional packages unavailable, continuing..."
+        if wants_desktop; then
+          $CMD_PREFIX apt install -y $PKGS_DESKTOP_COMMON 2>/dev/null || say "Some desktop packages unavailable, continuing..."
+          for pkg in $PKGS_DESKTOP_OPTIONAL; do $CMD_PREFIX apt install -y "$pkg" 2>/dev/null || say "Optional desktop package unavailable: $pkg"; done
+        fi
+        if wants_niri; then
+          for pkg in $PKGS_NIRI; do $CMD_PREFIX apt install -y "$pkg" 2>/dev/null || say "Optional Niri package unavailable: $pkg"; done
+        fi
+        if wants_hypr; then
+          for pkg in $PKGS_HYPR; do $CMD_PREFIX apt install -y "$pkg" 2>/dev/null || say "Optional Hyprland package unavailable: $pkg"; done
+        fi
+        if wants_noctalia_v5_deps; then
+          for pkg in $PKGS_NOCTALIA_V5_DEPS; do $CMD_PREFIX apt install -y "$pkg" 2>/dev/null || say "Optional Noctalia v5 build dependency unavailable: $pkg"; done
+        fi
         # Fix fd name on Debian/Ubuntu
         [ -f /usr/bin/fdfind ] && $CMD_PREFIX ln -sf /usr/bin/fdfind /usr/local/bin/fd
         
       elif command -v dnf    >/dev/null 2>&1; then 
         PKGS_DEV="tmux tree gh openssh-clients less file ripgrep fd-find gcc make neovim procps-ng htop jq python3 python3-pip fzf bat eza zoxide"
+        PKGS_DESKTOP_COMMON="wl-clipboard brightnessctl playerctl pavucontrol NetworkManager bluez"
+        PKGS_DESKTOP_OPTIONAL="wtype cliphist kitty firefox satty ghostty"
+        PKGS_NIRI="niri xwayland-satellite xdg-desktop-portal-gnome xdg-desktop-portal-gtk"
+        PKGS_HYPR="hyprland hyprlock hypridle xdg-desktop-portal-hyprland"
+        PKGS_NOCTALIA_V5_DEPS="meson gcc-c++ just wayland-devel wayland-protocols-devel libEGL-devel mesa-libGLES-devel freetype-devel fontconfig-devel cairo-devel pango-devel harfbuzz-devel libxkbcommon-devel glib2-devel sdbus-cpp-devel pipewire-devel pam-devel polkit-devel libcurl-devel libwebp-devel librsvg2-devel libqalculate-devel libxml2-devel jemalloc-devel"
         $CMD_PREFIX dnf install -y $PKGS_CORE $PKGS_DEV
+        if wants_desktop; then
+          $CMD_PREFIX dnf install -y $PKGS_DESKTOP_COMMON 2>/dev/null || say "Some desktop packages unavailable, continuing..."
+          for pkg in $PKGS_DESKTOP_OPTIONAL; do $CMD_PREFIX dnf install -y "$pkg" 2>/dev/null || say "Optional desktop package unavailable: $pkg"; done
+        fi
+        if wants_niri; then
+          for pkg in $PKGS_NIRI; do $CMD_PREFIX dnf install -y "$pkg" 2>/dev/null || say "Optional Niri package unavailable: $pkg"; done
+        fi
+        if wants_hypr; then
+          for pkg in $PKGS_HYPR; do $CMD_PREFIX dnf install -y "$pkg" 2>/dev/null || say "Optional Hyprland package unavailable: $pkg"; done
+        fi
+        if wants_noctalia_v5_deps; then
+          for pkg in $PKGS_NOCTALIA_V5_DEPS; do $CMD_PREFIX dnf install -y "$pkg" 2>/dev/null || say "Optional Noctalia v5 build dependency unavailable: $pkg"; done
+        fi
         
       elif command -v pacman >/dev/null 2>&1; then 
         PKGS_DEV="tmux tree github-cli openssh less file ripgrep fd base-devel neovim procps-ng htop jq python python-pip fzf bat eza zoxide"
-        $CMD_PREFIX pacman -Sy --needed $PKGS_CORE $PKGS_DEV
+        PKGS_DESKTOP_COMMON="wl-clipboard brightnessctl playerctl pavucontrol networkmanager bluez bluez-utils"
+        PKGS_DESKTOP_OPTIONAL="wtype cliphist kitty firefox satty ghostty"
+        PKGS_NIRI="niri xwayland-satellite xdg-desktop-portal-gnome xdg-desktop-portal-gtk"
+        PKGS_HYPR="hyprland hyprlock hypridle xdg-desktop-portal-hyprland"
+        PKGS_NOCTALIA_V5_DEPS="meson gcc just wayland wayland-protocols libglvnd freetype2 fontconfig cairo pango harfbuzz libxkbcommon glib2 sdbus-cpp pipewire polkit pam curl libwebp librsvg libqalculate libxml2 jemalloc"
+        $CMD_PREFIX pacman -Sy --needed --noconfirm $PKGS_CORE $PKGS_DEV
+        if wants_desktop; then
+          $CMD_PREFIX pacman -S --needed --noconfirm $PKGS_DESKTOP_COMMON 2>/dev/null || say "Some desktop packages unavailable, continuing..."
+          for pkg in $PKGS_DESKTOP_OPTIONAL; do $CMD_PREFIX pacman -S --needed --noconfirm "$pkg" 2>/dev/null || say "Optional desktop package unavailable: $pkg"; done
+        fi
+        if wants_niri; then
+          for pkg in $PKGS_NIRI; do $CMD_PREFIX pacman -S --needed --noconfirm "$pkg" 2>/dev/null || say "Optional Niri package unavailable: $pkg"; done
+        fi
+        if wants_hypr; then
+          for pkg in $PKGS_HYPR; do $CMD_PREFIX pacman -S --needed --noconfirm "$pkg" 2>/dev/null || say "Optional Hyprland package unavailable: $pkg"; done
+        fi
+        if wants_noctalia_v5_deps; then
+          for pkg in $PKGS_NOCTALIA_V5_DEPS; do $CMD_PREFIX pacman -S --needed --noconfirm "$pkg" 2>/dev/null || say "Optional Noctalia v5 build dependency unavailable: $pkg"; done
+        fi
         
       elif command -v zypper >/dev/null 2>&1; then 
         PKGS_DEV="tmux tree gh openssh less file ripgrep fd gcc make neovim procps htop jq python3 python3-pip fzf bat eza zoxide"
+        PKGS_DESKTOP_COMMON="wl-clipboard brightnessctl playerctl pavucontrol NetworkManager bluez"
+        PKGS_DESKTOP_OPTIONAL="wtype cliphist kitty firefox satty ghostty"
+        PKGS_NIRI="niri xwayland-satellite xdg-desktop-portal-gnome xdg-desktop-portal-gtk"
+        PKGS_HYPR="hyprland hyprlock hypridle xdg-desktop-portal-hyprland"
         $CMD_PREFIX zypper --non-interactive in $PKGS_CORE $PKGS_DEV
+        if wants_desktop; then
+          $CMD_PREFIX zypper --non-interactive in $PKGS_DESKTOP_COMMON 2>/dev/null || say "Some desktop packages unavailable, continuing..."
+          for pkg in $PKGS_DESKTOP_OPTIONAL; do $CMD_PREFIX zypper --non-interactive in "$pkg" 2>/dev/null || say "Optional desktop package unavailable: $pkg"; done
+        fi
+        if wants_niri; then
+          for pkg in $PKGS_NIRI; do $CMD_PREFIX zypper --non-interactive in "$pkg" 2>/dev/null || say "Optional Niri package unavailable: $pkg"; done
+        fi
+        if wants_hypr; then
+          for pkg in $PKGS_HYPR; do $CMD_PREFIX zypper --non-interactive in "$pkg" 2>/dev/null || say "Optional Hyprland package unavailable: $pkg"; done
+        fi
+        if wants_noctalia_v5_deps; then
+          say "Noctalia v5 build dependency installation is not mapped for zypper yet."
+          say "Install v5 dependencies manually from: https://docs.noctalia.dev/v5/getting-started/installation"
+        fi
       else
         say "No supported package manager. Install packages manually."
         exit 1
@@ -143,6 +238,26 @@ if [ "$FULL_INSTALL" = 1 ]; then
     if [ "$OS" = "macos" ] && [[ "$c" =~ ^(file|less|jq|python3)$ ]]; then continue; fi
     command -v "$c" >/dev/null 2>&1 || need=1
   done
+  if wants_desktop; then
+    for c in wl-copy brightnessctl playerctl pavucontrol kitty firefox satty; do
+      command -v "$c" >/dev/null 2>&1 || need=1
+    done
+  fi
+  if wants_niri; then
+    for c in niri wtype cliphist; do
+      command -v "$c" >/dev/null 2>&1 || need=1
+    done
+  fi
+  if wants_hypr; then
+    for c in Hyprland hyprctl; do
+      command -v "$c" >/dev/null 2>&1 || need=1
+    done
+  fi
+  if wants_noctalia_v5_deps; then
+    need=1
+  elif [ "$INSTALL_NOCTALIA_V5_DEPS" = 1 ]; then
+    say "INSTALL_NOCTALIA_V5_DEPS=1 only applies to desktop profiles; ignoring for PROFILE=$PROFILE."
+  fi
 else
   for c in git stow zsh curl wget unzip; do
     command -v "$c" >/dev/null 2>&1 || need=1
@@ -267,6 +382,12 @@ if [ "$FULL_INSTALL" = 1 ]; then
   say "Full development environment installed"
 else
   say "Minimal install complete. Run with FULL_INSTALL=1 for all dev tools."
+fi
+
+if wants_desktop && [ -d "$HOME/.config/noctalia-v5-test" ]; then
+  say "Noctalia v5 is alpha and is not installed by this bootstrap."
+  say "Install/update it manually from: https://docs.noctalia.dev/v5/getting-started/installation"
+  say "Optional: rerun with INSTALL_NOCTALIA_V5_DEPS=1 to install known build deps."
 fi
 
 # macOS-specific post-install notes

@@ -14,4 +14,3 @@ else
     # Not in tmux, send directly to controlling terminal
     printf "\033]52;c;%s\a" "$encoded" > /dev/tty 2>/dev/null
 fi
-

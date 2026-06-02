@@ -2,7 +2,7 @@
 
 Portable CLI/development configuration managed with GNU Stow. The default install is safe for headless systems, SSH-only hosts, containers, and general Linux/macOS machines.
 
-Desktop/Wayland configuration is opt-in through profiles and should eventually live in a separate `dotfiles-desktop` repo. Fedora Asahi hardware/system recovery should stay in `asahi-fedora-restore`.
+Desktop/Wayland configuration is opt-in through profiles and should eventually live in a separate `dotfiles-desktop` repo. Fedora Asahi hardware/system recovery should stay in `asahi-dotfiles`.
 
 ## Quick Install
 
@@ -26,18 +26,28 @@ PROFILE=desktop-niri bash bootstrap.sh
 PROFILE=desktop-hypr bash bootstrap.sh
 PROFILE=desktop bash bootstrap.sh
 
-# Transitional Asahi profile; system recovery belongs in asahi-fedora-restore
+# Transitional Asahi profile; system recovery belongs in asahi-dotfiles
 PROFILE=asahi bash bootstrap.sh
 ```
 
 Profile packages:
 
-- `cli`: `zsh`, `tmux`, `git`, `nvim`, `starship`, `eza`, `bat`, `yazi`
+- `cli`: `zsh`, `tmux`, `git`, `nvim`, `starship`, `eza`, `bat`, `yazi`, `scripts`
 - `dev`: `cli` plus `claude`
 - `desktop-niri`: `dev` plus `kitty`, `ghostty`, `niri`, `noctalia`, `noctalia-v5`
 - `desktop-hypr`: `dev` plus `kitty`, `ghostty`, `hypr`, `noctalia`, `noctalia-v5`
 - `desktop`: both desktop compositor configs
-- `asahi`: transitional profile with desktop config, `shell-scripts`, and `vpn-split`
+- `asahi`: transitional profile with desktop config and `vpn-split`; Asahi hardware/system recovery lives in `~/asahi-dotfiles`
+
+Desktop profiles also install the main runtime packages they depend on when the system package manager is supported. On Arch/CachyOS, `PROFILE=desktop-niri` installs common Wayland/Niri tools such as `wl-clipboard`, `cliphist`, `wtype`, `brightnessctl`, `playerctl`, `pavucontrol`, `kitty`, `firefox`, `satty`, and available Niri portal/session packages.
+
+Noctalia v5 note: this repo tracks config and a `noctalia-v5` launcher wrapper, but does not install the alpha v5 shell itself. Install or update v5 from upstream docs: <https://docs.noctalia.dev/v5/getting-started/installation>. If you are building v5 from source, you can ask the bootstrap to install known build dependencies with `INSTALL_NOCTALIA_V5_DEPS=1 PROFILE=desktop-niri bash bootstrap.sh`.
+
+Fresh CachyOS/Niri desktop example:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fjordnode/dotfiles/main/bootstrap.sh | PROFILE=desktop-niri bash
+```
 
 ### Termux (Android)
 
@@ -97,7 +107,8 @@ bash bootstrap-android.sh
 - **starship** - Cross-shell prompt
 - **claude** - AI tool configuration, installed by `PROFILE=dev` or desktop profiles
 - **niri/hypr/noctalia** - Desktop-only config, installed only by explicit desktop profiles
-- **vpn-split/shell-scripts** - Transitional Linux/Asahi-specific helpers, installed only by `PROFILE=asahi`
+- **scripts** - Portable helper scripts used by shell, tmux, and Neovim profiles
+- **vpn-split** - Transitional Linux-specific VPN helpers, installed only by `PROFILE=asahi`
 
 ## Directory Structure
 
@@ -124,7 +135,7 @@ dotfiles/
 ├── niri/              # desktop profiles
 ├── hypr/              # desktop profiles
 ├── noctalia*/         # desktop profiles
-├── shell-scripts/     # asahi transitional profile
+├── scripts/           # portable helper scripts
 └── vpn-split/         # asahi transitional profile
 ```
 
