@@ -105,6 +105,7 @@ bash bootstrap-android.sh
 - **git** - Git configuration and aliases
 - **bat/eza/yazi** - CLI tool configuration
 - **starship** - Cross-shell prompt
+- **herdr** - Terminal workspace manager configuration
 - **claude** - AI tool configuration, installed by `PROFILE=dev` or desktop profiles
 - **niri/hypr/noctalia** - Desktop-only config, installed only by explicit desktop profiles
 - **scripts** - Portable helper scripts used by shell, tmux, and Neovim profiles
@@ -131,6 +132,10 @@ dotfiles/
 ├── bat/
 ├── eza/
 ├── yazi/
+├── herdr/
+│   └── .config/
+│       └── herdr/
+│           └── config.toml
 ├── claude/            # dev profile
 ├── niri/              # desktop profiles
 ├── hypr/              # desktop profiles

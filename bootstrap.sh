@@ -32,22 +32,22 @@ wants_noctalia_v5_deps() { [ "$INSTALL_NOCTALIA_V5_DEPS" = 1 ] && wants_desktop;
 packages_for_profile() {
   case "$PROFILE" in
     cli)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr
       ;;
     dev)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts claude
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude
       ;;
     desktop-niri)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts claude kitty ghostty niri noctalia noctalia-v5
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty niri noctalia noctalia-v5
       ;;
     desktop-hypr)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts claude kitty ghostty hypr noctalia noctalia-v5
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty hypr noctalia noctalia-v5
       ;;
     desktop)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts claude kitty ghostty niri hypr noctalia noctalia-v5
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty niri hypr noctalia noctalia-v5
       ;;
     asahi)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts claude kitty ghostty niri hypr noctalia noctalia-v5 vpn-split
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty niri hypr noctalia noctalia-v5 vpn-split
       ;;
     *)
       say "Unknown PROFILE=$PROFILE"
