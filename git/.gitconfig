@@ -16,6 +16,5 @@
 [credential "https://gist.github.com"]
 	helper =
 	helper = !/usr/bin/env gh auth git-credential
-[safe]
-	directory = /mnt/cache/appdata/komodo/repos/homelab-compose
-	directory = /mnt/cache/projects/gridhub
+[include]
+	path = ~/.gitconfig.local

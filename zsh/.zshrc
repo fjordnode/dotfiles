@@ -110,9 +110,10 @@ bindkey -M emacs '^[[B' history-substring-search-down
 # Load custom functions
 [ -f "$HOME/.local/share/shell-functions.sh" ] && source "$HOME/.local/share/shell-functions.sh"
 [ -f ~/.local/bin/rm-safety ] && source ~/.local/bin/rm-safety
-[ -f "$HOME/dotfiles/shell/functions/dotfiles-check.zsh" ] && source "$HOME/dotfiles/shell/functions/dotfiles-check.zsh"
-[ -f "$HOME/dotfiles/shell/functions/fuzzy-listing.zsh" ] && source "$HOME/dotfiles/shell/functions/fuzzy-listing.zsh"
-[ -f "$HOME/dotfiles/shell/functions/fuzzy-nvim.zsh" ] && source "$HOME/dotfiles/shell/functions/fuzzy-nvim.zsh"
+for function_file in "$HOME/.local/share/zsh/functions"/*.zsh(N); do
+  source "$function_file"
+done
+unset function_file
 
 # Completion settings
 setopt globdots
@@ -159,3 +160,10 @@ export PATH="$HOME/.local/npm-global/bin:$PATH"
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# Pi
+export PATH="$HOME/.local/share/pi-node/node-v22.23.1-linux-x64/bin:$PATH"

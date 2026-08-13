@@ -37,12 +37,6 @@ window-rule {
     scroll-factor 0.50
 }
 
-// @id=wr_1775843539862231887 @name=dev.noctalia.noctalia-qs
-window-rule {
-    match app-id="^dev.noctalia.noctalia-qs$"
-    scroll-factor 0.50
-}
-
 // @id=wr_1775856775484398908 @name=kitty
 window-rule {
     match app-id="^kitty$"

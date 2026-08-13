@@ -1,16 +1,77 @@
 {
+  "env": {
+    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1"
+  },
   "permissions": {
     "allow": [
       "WebFetch",
-      "Read",
       "WebSearch",
-      "Bash(curl:*)"
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(file:*)",
+      "Bash(wc:*)",
+      "Bash(stat:*)",
+      "Bash(du:*)",
+      "Bash(df:*)",
+      "Bash(tree:*)",
+      "Bash(curl:*)",
+      "Bash(which:*)",
+      "Bash(type:*)",
+      "Bash(realpath:*)",
+      "Bash(readlink:*)",
+      "Bash(diff:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(whoami:*)",
+      "Bash(hostname:*)",
+      "Bash(uname:*)",
+      "Bash(id:*)",
+      "Bash(env:*)",
+      "Bash(printenv:*)",
+      "Bash(pwd:*)",
+      "Bash(date:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr status:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue status:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh api:*)",
+      "Bash(gh status:*)"
     ],
-    "deny": [
+    "deny": [],
+    "ask": [
       "Bash(rm:*)",
       "Bash(/bin/rm:*)",
       "Bash(rmdir:*)",
       "Bash(unlink:*)"
+    ],
+    "defaultMode": "auto"
+  },
+  "model": "opus",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
@@ -19,8 +80,22 @@
     "padding": 0
   },
   "enabledPlugins": {
-    "explanatory-output-style@claude-plugins-official": true,
-    "code-review@claude-plugins-official": true
+    "caveman@caveman": false,
+    "code-review@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true
   },
-  "alwaysThinkingEnabled": true
+  "extraKnownMarketplaces": {
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
+    }
+  },
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
+  "tui": "fullscreen",
+  "autoCompactEnabled": false,
+  "skipAutoPermissionPrompt": true,
+  "promptSuggestionEnabled": false
 }

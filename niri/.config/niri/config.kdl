@@ -153,26 +153,15 @@ overview {
     }
 }
 // Autostart
-// spawn-at-startup "swayidle" "-w"  // Disabled: using DMS idle monitoring instead
+// spawn-at-startup "swayidle" "-w"  // Disabled: Noctalia handles idle monitoring.
 spawn-at-startup "wl-paste" "--type" "text" "--watch" "cliphist" "store"
 spawn-at-startup "wl-paste" "--type" "image" "--watch" "cliphist" "store"
 spawn-at-startup "wl-paste" "--watch" "yoink-watcher"
 spawn-at-startup "yoink-sync-dms-theme"
-// spawn-at-startup "qs" "-d" "-c" "noctalia-shell"  // v4; v5 is now the boot default
-spawn-at-startup "noctalia-v5"
+spawn-at-startup "noctalia"
 spawn-at-startup "firefox"
 spawn-at-startup "kitty" "--class" "startup-kitty"
 // spawn-at-startup "primary-to-clipboard"  // disabled 2026-04-18
-// Lid-closed shutdown is handled by the systemd user lid-shutdown.timer.
-// On lid close (battery only): turn off display + wifi + bluetooth; restore on open.
-switch-events {
-    lid-close {
-        spawn "/home/hugo/.local/bin/lid-devices" "close"
-    }
-    lid-open {
-        spawn "/home/hugo/.local/bin/lid-devices" "open"
-    }
-}
 // This line starts waybar, a commonly used bar for Wayland compositors.
 environment {
   XDG_CURRENT_DESKTOP "niri"
@@ -333,7 +322,7 @@ recent-windows {
     }
 }
 
-// DMS includes
+// Shell and theme includes
 include "dms/colors.kdl"
 include "noctalia/layout.kdl"
 include "noctalia/backdrop.kdl"
@@ -343,8 +332,8 @@ include "dms/cursor.kdl"
 include "dms/windowrules.kdl"
 include "noctalia/windowrules.kdl"
 
-// === Universal Keybindings ===
-// These work with or without DMS. DMS overrides some with its own IPC.
+// === Base Keybindings ===
+// Noctalia-specific panel, media, and brightness bindings are included below.
 binds {
     // --- System & Overview ---
     Mod+D repeat=false { toggle-overview; }
@@ -354,11 +343,7 @@ binds {
 
     // --- Application Launchers ---
     Mod+Return hotkey-overlay-title="Open Terminal" { spawn "kitty"; }
-    Mod+S hotkey-overlay-title="Scratchpad" { spawn "/home/hugo/.local/bin/niri-scratchpad-toggle"; }
-    Mod+at hotkey-overlay-title="Special Workspace" { spawn "/home/hugo/.local/bin/niri-special-workspace-toggle"; }
-    Mod+Shift+at hotkey-overlay-title="Send to Special Workspace" { spawn "/home/hugo/.local/bin/niri-special-workspace-send"; }
-    Mod+Ctrl+at hotkey-overlay-title="Remove from Special Workspace" { spawn "/home/hugo/.local/bin/niri-special-workspace-detach"; }
-    Mod+Alt+Shift+S hotkey-overlay-title="Send to Special Workspace" { spawn "/home/hugo/.local/bin/niri-special-workspace-send"; }
+    Mod+S hotkey-overlay-title="Scratchpad" { spawn "niri-scratchpad-toggle"; }
     Mod+B hotkey-overlay-title="Open Firefox" {
         spawn-sh "id=$(niri msg -j windows | jq -r '.[] | select(.app_id | test(\"firefox$\")) | .id' | head -1); if [ -n \"$id\" ]; then niri msg action focus-window --id $id; else firefox; fi";
     }
@@ -519,32 +504,16 @@ binds {
     // --- Screen Recording ---
     Mod+Shift+R { spawn-sh "pgrep -x wf-recorder && pkill -INT wf-recorder || wf-recorder -g \"$(slurp)\" -f ~/Videos/recording-$(date +%Y-%m-%d_%H-%M-%S).mp4"; }
 
-    // --- Audio Controls (fallback — DMS overrides with OSD) ---
-    XF86AudioRaiseVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "3%+"; }
-    XF86AudioLowerVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "3%-"; }
-    XF86AudioMute allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
-    XF86AudioMicMute allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
-    XF86AudioPlay allow-when-locked=true { spawn "playerctl" "play-pause"; }
-    XF86AudioPause allow-when-locked=true { spawn "playerctl" "play-pause"; }
-    XF86AudioPrev allow-when-locked=true { spawn "playerctl" "previous"; }
-    XF86AudioNext allow-when-locked=true { spawn "playerctl" "next"; }
-
-    // --- Brightness Controls (fallback — DMS overrides with OSD) ---
-    XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "--quiet" "set" "+5%"; }
-    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--quiet" "set" "5%-"; }
-    Mod+XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "--quiet" "--device" "kbd_backlight" "set" "+10%"; }
-    Mod+XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--quiet" "--device" "kbd_backlight" "set" "10%-"; }
-
     // --- Power ---
     Mod+Ctrl+P { power-off-monitors; }
 }
 
-// DMS keybinding overrides (comment out to use niri without DMS)
+// Noctalia V5 keybindings
 include "noctalia/binds.kdl"
 
-// DMS Settings — float centered
+// Noctalia settings — float centered
 window-rule {
-    match app-id=r#"^dev\.noctalia\.noctalia-qs$"# title="Settings"
+    match app-id=r#"^dev\.noctalia\.Noctalia$"#
     open-floating true
     default-column-width { fixed 800; }
     default-window-height { proportion 1.0; }

@@ -5,19 +5,23 @@ BAR_STYLE="blocks"
 input=$(cat || echo '{}')
 cwd=$(echo "$input" | jq -r '.workspace.current_dir')
 model=$(echo "$input" | jq -r '.model.display_name // "Claude"')
-context_total=$(echo "$input" | jq -r '((.context_window.context_window_size // 0) / 1000 | floor)')
+reported_context_size=$(echo "$input" | jq -r '.context_window.context_window_size // 200000')
+# Claudex advertises the model's nominal 1M window but deliberately compacts at
+# a smaller upstream-safe limit. Prefer that effective window when it is set.
+context_size="${CLAUDE_CODE_AUTO_COMPACT_WINDOW:-$reported_context_size}"
+[[ "$context_size" =~ ^[0-9]+$ ]] || context_size="$reported_context_size"
+context_total=$((context_size / 1000))
 
 # Use 2.0.70+ context_window.current_usage (most accurate)
 current_usage=$(echo "$input" | jq -r '.context_window.current_usage // empty')
 if [ -n "$current_usage" ] && [ "$current_usage" != "null" ]; then
-    # Sum all token fields from current_usage
+    # Claude Code's used percentage counts input context only, not output.
     context_tokens=$(echo "$input" | jq -r '
         .context_window.current_usage |
-        ((.input_tokens // 0) + (.output_tokens // 0) +
-         (.cache_creation_input_tokens // 0) + (.cache_read_input_tokens // 0))
+        ((.input_tokens // 0) + (.cache_creation_input_tokens // 0) +
+         (.cache_read_input_tokens // 0))
     ')
     context_used=$((context_tokens / 1000))
-    context_size=$(echo "$input" | jq -r '.context_window.context_window_size // 200000')
     context_pct=$((100 * context_tokens / context_size))
 else
     # Fallback: Get actual context from transcript's cache_read_input_tokens
@@ -33,7 +37,6 @@ else
             [ -z "$input_tok" ] && input_tok=0
             context_tokens=$((cache_read + cache_create + input_tok))
             context_used=$((context_tokens / 1000))
-            context_size=$(echo "$input" | jq -r '.context_window.context_window_size // 200000')
             context_pct=$((100 * context_tokens / context_size))
         else
             context_used=0
@@ -45,6 +48,28 @@ else
     fi
 fi
 cost=$(echo "$input" | jq -r '.cost.total_cost_usd // 0 | . * 100 | floor | . / 100')
+rl_5h=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // 0 | floor')
+rl_5h_reset=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // 0 | floor')
+rl_7d=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // 0 | floor')
+rl_7d_reset=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // 0 | floor')
+now_epoch=$(date +%s)
+
+fmt_remaining() {
+    local diff=$(( $1 - now_epoch ))
+    [ "$diff" -lt 0 ] && diff=0
+    local d=$((diff / 86400))
+    local h=$(( (diff % 86400) / 3600 ))
+    local m=$(( (diff % 3600) / 60 ))
+    if [ "$d" -gt 0 ]; then
+        printf "%dd%dh" "$d" "$h"
+    elif [ "$h" -gt 0 ]; then
+        printf "%dh%dm" "$h" "$m"
+    else
+        printf "%dm" "$m"
+    fi
+}
+rl_5h_ttl=$(fmt_remaining "$rl_5h_reset")
+rl_7d_ttl=$(fmt_remaining "$rl_7d_reset")
 duration_ms=$(echo "$input" | jq -r '.cost.total_duration_ms // 0')
 [[ ! "$duration_ms" =~ ^[0-9]+$ ]] && duration_ms=0
 duration_min=$((duration_ms / 60000))
@@ -138,6 +163,22 @@ fi
 # Cost and duration
 printf "$sep \033[38;2;140;140;140m$\033[38;2;166;227;161m%s\033[0m" "$cost"
 printf "$sep \033[38;2;140;140;140m󰥔\033[0m \033[38;2;180;180;180m%sm\033[0m" "$duration_min"
+
+# Rate limits
+for rl_entry in "5h:$rl_5h:$rl_5h_ttl" "7d:$rl_7d:$rl_7d_ttl"; do
+    rl_label="${rl_entry%%:*}"
+    rl_rest="${rl_entry#*:}"
+    rl_pct="${rl_rest%%:*}"
+    rl_ttl="${rl_rest#*:}"
+    if [ "$rl_pct" -lt 50 ]; then
+        rl_color="166;227;161"  # green
+    elif [ "$rl_pct" -lt 80 ]; then
+        rl_color="250;179;135"  # yellow
+    else
+        rl_color="243;139;168"  # red
+    fi
+    printf "$sep \033[38;2;140;140;140m%s:\033[38;2;%sm%s%%\033[0m \033[38;2;100;100;100m(%s)\033[0m" "$rl_label" "$rl_color" "$rl_pct" "$rl_ttl"
+done
 
 # Line 2: Git, pwd
 printf "\n"

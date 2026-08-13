@@ -19,7 +19,7 @@ eval "$(zoxide init zsh)"
 ### Setup
 ```bash
 # Source the function in your .zshrc
-source ~/dotfiles/shell/functions/fuzzy-nvim.zsh
+source ~/.local/share/zsh/functions/fuzzy-nvim.zsh
 
 # Or use the shorter alias
 alias zvim='znvim'

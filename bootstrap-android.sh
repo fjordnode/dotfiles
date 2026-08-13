@@ -6,7 +6,6 @@ REPO="${REPO:-https://github.com/fjordnode/dotfiles.git}"
 DEST="${DEST:-$HOME/dotfiles}"
 
 # Flags you can override
-INSTALL_OHMYPOSH="${INSTALL_OHMYPOSH:-1}"
 INSTALL_OMZ="${INSTALL_OMZ:-1}"
 FULL_INSTALL="${FULL_INSTALL:-1}"
 SETUP_STORAGE="${SETUP_STORAGE:-1}"
@@ -17,10 +16,10 @@ say() { printf '[bootstrap-android] %s\n' "$*"; }
 packages_for_profile() {
   case "$PROFILE" in
     cli)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts
       ;;
     dev)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi claude
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts claude
       ;;
     *)
       say "Unsupported Termux PROFILE=$PROFILE"
@@ -53,7 +52,7 @@ install_pkgs() {
   
   if [ "$FULL_INSTALL" = 1 ]; then
     # Full development environment packages for Termux
-    PKGS_DEV="tmux tree gh openssh less file ripgrep fd build-essential neovim procps htop jq python fzf bat eza zoxide nodejs"
+    PKGS_DEV="tmux tree gh openssh less file ripgrep fd build-essential neovim procps htop jq python fzf bat eza zoxide nodejs starship"
     say "Installing full development environment..."
     pkg install -y $PKGS_CORE $PKGS_DEV
   else
@@ -66,7 +65,7 @@ install_pkgs() {
 need=0
 if [ "$FULL_INSTALL" = 1 ]; then
   # Check for all the tools we need
-  for c in git stow curl wget tmux nvim tree gh less rg fd htop jq python fzf bat eza zoxide; do 
+  for c in git stow curl wget tmux nvim tree gh less rg fd htop jq python fzf bat eza zoxide starship; do
     command -v "$c" >/dev/null 2>&1 || need=1
   done
 else
@@ -136,57 +135,24 @@ if [ "$INSTALL_OMZ" = 1 ]; then
     git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
   [ ! -d "$ZSH_CUSTOM/plugins/fzf-tab" ] && \
     git clone https://github.com/Aloxaf/fzf-tab "$ZSH_CUSTOM/plugins/fzf-tab"
+  [ ! -d "$ZSH_CUSTOM/plugins/zsh-opencode-tab" ] && \
+    git clone https://github.com/alberti42/zsh-opencode-tab "$ZSH_CUSTOM/plugins/zsh-opencode-tab"
 fi
 
-# 5) Install oh-my-posh for Termux
-if [ "$INSTALL_OHMYPOSH" = 1 ] && ! command -v oh-my-posh >/dev/null 2>&1; then
-  say "Installing oh-my-posh for Termux..."
-  
-  # Create local bin directory
-  mkdir -p "$HOME/.local/bin"
-  
-  # Download and install oh-my-posh binary directly for Android ARM64
-  if [ "$(uname -m)" = "aarch64" ]; then
-    ARCH="linux-arm64"
-  else
-    ARCH="linux-arm"
-  fi
-  
-  say "Downloading oh-my-posh for Android ($ARCH)..."
-  curl -fL "https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/posh-$ARCH" -o "$HOME/.local/bin/oh-my-posh"
-  chmod +x "$HOME/.local/bin/oh-my-posh"
-  
-  # Add to PATH in shell configs
-  for shell_rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
-    if [ -f "$shell_rc" ] && ! grep -q ".local/bin" "$shell_rc"; then
-      echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$shell_rc"
-    fi
-  done
-  
-  # Add to current session PATH
-  export PATH="$HOME/.local/bin:$PATH"
-  
-  if command -v oh-my-posh >/dev/null 2>&1; then
-    say "oh-my-posh installed successfully"
-  else
-    say "Warning: oh-my-posh installation may have failed"
-  fi
-fi
-
-# 6) Install Neovim plugins
+# 5) Install Neovim plugins
 if command -v nvim >/dev/null 2>&1 && [ -d "$HOME/.config/nvim" ]; then
   say "Installing Neovim plugins..."
   nvim --headless "+Lazy! sync" +qa 2>/dev/null || true
 fi
 
-# 7) Install TPM (Tmux Plugin Manager)
-if command -v tmux >/dev/null 2>&1 && [ ! -d "$HOME/.config/tmux/plugins/tpm" ]; then
+# 6) Install TPM (Tmux Plugin Manager)
+if command -v tmux >/dev/null 2>&1 && [ ! -d "$HOME/.local/share/tmux/plugins/tpm" ]; then
   say "Installing TPM (Tmux Plugin Manager)..."
-  mkdir -p "$HOME/.config/tmux/plugins"
-  git clone https://github.com/tmux-plugins/tpm "$HOME/.config/tmux/plugins/tpm"
+  mkdir -p "$HOME/.local/share/tmux/plugins"
+  git clone https://github.com/tmux-plugins/tpm "$HOME/.local/share/tmux/plugins/tpm"
 fi
 
-# 8) Install NVM (Node Version Manager) if not already installed via pkg
+# 7) Install NVM (Node Version Manager) if not already installed via pkg
 if [ "$FULL_INSTALL" = 1 ] && [ ! -d "$HOME/.nvm" ] && ! command -v node >/dev/null 2>&1; then
   say "Installing NVM (Node Version Manager)..."
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
@@ -201,7 +167,7 @@ if [ "$FULL_INSTALL" = 1 ] && [ ! -d "$HOME/.nvm" ] && ! command -v node >/dev/n
   nvm use --lts
 fi
 
-# 9) Install Nerd Fonts for icons in prompt and terminal
+# 8) Install Nerd Fonts for icons in prompt and terminal
 say "Installing Nerd Fonts for better icon support..."
 mkdir -p "$HOME/.termux"
 
@@ -244,7 +210,7 @@ if [ ! -f "$HOME/.termux/font.ttf" ]; then
   cd "$DEST"
 fi
 
-# 10) Set zsh as default shell using Termux's proper method
+# 9) Set zsh as default shell using Termux's proper method
 if command -v zsh >/dev/null 2>&1; then
   ZSH_PATH="$(command -v zsh)"
   
@@ -259,7 +225,7 @@ if command -v zsh >/dev/null 2>&1; then
   fi
 fi
 
-# 11) Termux-specific optimizations
+# 10) Termux-specific optimizations
 say "Applying Termux-specific optimizations..."
 
 # Enable hardware keyboard support

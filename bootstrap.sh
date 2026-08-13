@@ -38,16 +38,16 @@ packages_for_profile() {
       printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude
       ;;
     desktop-niri)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty niri noctalia noctalia-v5
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty niri noctalia
       ;;
     desktop-hypr)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty hypr noctalia noctalia-v5
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty hypr noctalia
       ;;
     desktop)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty niri hypr noctalia noctalia-v5
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty niri hypr noctalia
       ;;
     asahi)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty niri hypr noctalia noctalia-v5 vpn-split
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty niri hypr noctalia vpn-split
       ;;
     *)
       say "Unknown PROFILE=$PROFILE"
@@ -342,10 +342,10 @@ if command -v nvim >/dev/null 2>&1 && [ -d "$HOME/.config/nvim" ]; then
 fi
 
 # 7) Install TPM (Tmux Plugin Manager)
-if command -v tmux >/dev/null 2>&1 && [ ! -d "$HOME/.config/tmux/plugins/tpm" ]; then
+if command -v tmux >/dev/null 2>&1 && [ ! -d "$HOME/.local/share/tmux/plugins/tpm" ]; then
   say "Installing TPM (Tmux Plugin Manager)..."
-  mkdir -p "$HOME/.config/tmux/plugins"
-  git clone https://github.com/tmux-plugins/tpm "$HOME/.config/tmux/plugins/tpm"
+  mkdir -p "$HOME/.local/share/tmux/plugins"
+  git clone https://github.com/tmux-plugins/tpm "$HOME/.local/share/tmux/plugins/tpm"
 fi
 
 # 8) Build bat theme cache
@@ -384,8 +384,8 @@ else
   say "Minimal install complete. Run with FULL_INSTALL=1 for all dev tools."
 fi
 
-if wants_desktop && [ -d "$HOME/.config/noctalia-v5-test" ]; then
-  say "Noctalia v5 is alpha and is not installed by this bootstrap."
+if wants_desktop && ! command -v noctalia >/dev/null 2>&1; then
+  say "Noctalia V5 is not installed by this bootstrap."
   say "Install/update it manually from: https://docs.noctalia.dev/v5/getting-started/installation"
   say "Optional: rerun with INSTALL_NOCTALIA_V5_DEPS=1 to install known build deps."
 fi

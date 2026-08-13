@@ -1,0 +1,26 @@
+[widget.wg_proton]
+type = "scripted"
+script = "~/.config/noctalia/scripts/wireguard_status.lua"
+scope = "shared"
+status_command = "wg-status-proton"
+toggle_command = "wg-toggle-proton"
+tooltip = "WireGuard Proton"
+fallback_glyph = "shield-lock"
+
+[widget.wg_home]
+type = "scripted"
+script = "~/.config/noctalia/scripts/wireguard_status.lua"
+scope = "shared"
+status_command = "wg-status-home"
+toggle_command = "wg-toggle-home"
+tooltip = "WireGuard Home"
+fallback_glyph = "home"
+
+[widget.wg_killswitch]
+type = "scripted"
+script = "~/.config/noctalia/scripts/wireguard_status.lua"
+scope = "shared"
+status_command = "wg-status-killswitch"
+toggle_command = "wg-toggle-killswitch"
+tooltip = "Kill Switch"
+fallback_glyph = "shield-check"

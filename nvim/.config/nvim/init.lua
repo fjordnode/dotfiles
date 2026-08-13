@@ -28,16 +28,18 @@ vim.keymap.set('n', '<leader>Y', '"+Y', { desc = 'Yank line to clipboard' })
 vim.keymap.set('v', '<LeftRelease>', '"+y<LeftRelease>', { desc = 'Copy mouse selection to clipboard' })
 vim.keymap.set('v', '<2-LeftMouse>', '"+y<2-LeftMouse>', { desc = 'Copy double-click selection to clipboard' })
 
--- OSC 52 clipboard via script (writes directly to tmux client TTY for mosh compat)
+-- OSC 52 clipboard. Neovim writes the sequence through its active UI, allowing
+-- tmux (set-clipboard=on) and SSH/Mosh to forward it to the local terminal.
+local osc52 = require('vim.ui.clipboard.osc52')
 vim.g.clipboard = {
   name = 'OSC 52',
   copy = {
-    ['+'] = {'sh', '-c', 'cat | ~/.local/bin/osc52-yank'},
-    ['*'] = {'sh', '-c', 'cat | ~/.local/bin/osc52-yank'},
+    ['+'] = osc52.copy('+'),
+    ['*'] = osc52.copy('*'),
   },
   paste = {
-    ['+'] = require('vim.ui.clipboard.osc52').paste('+'),
-    ['*'] = require('vim.ui.clipboard.osc52').paste('*'),
+    ['+'] = osc52.paste('+'),
+    ['*'] = osc52.paste('*'),
   },
 }
 
@@ -104,4 +106,3 @@ vim.keymap.set('n', '`', '`zz', { desc = 'Jump to mark exact + center' })
 
 -- Center on line joins
 vim.keymap.set('n', 'J', 'Jzz', { desc = 'Join lines + center' })
-

@@ -32,16 +32,16 @@ PROFILE=asahi bash bootstrap.sh
 
 Profile packages:
 
-- `cli`: `zsh`, `tmux`, `git`, `nvim`, `starship`, `eza`, `bat`, `yazi`, `scripts`
+- `cli`: `zsh`, `tmux`, `git`, `nvim`, `starship`, `eza`, `bat`, `yazi`, `scripts`, `herdr`
 - `dev`: `cli` plus `claude`
-- `desktop-niri`: `dev` plus `kitty`, `ghostty`, `niri`, `noctalia`, `noctalia-v5`
-- `desktop-hypr`: `dev` plus `kitty`, `ghostty`, `hypr`, `noctalia`, `noctalia-v5`
+- `desktop-niri`: `dev` plus `kitty`, `ghostty`, `niri`, and Noctalia V5
+- `desktop-hypr`: `dev` plus `kitty`, `ghostty`, `hypr`, and Noctalia V5
 - `desktop`: both desktop compositor configs
 - `asahi`: transitional profile with desktop config and `vpn-split`; Asahi hardware/system recovery lives in `~/asahi-dotfiles`
 
 Desktop profiles also install the main runtime packages they depend on when the system package manager is supported. On Arch/CachyOS, `PROFILE=desktop-niri` installs common Wayland/Niri tools such as `wl-clipboard`, `cliphist`, `wtype`, `brightnessctl`, `playerctl`, `pavucontrol`, `kitty`, `firefox`, `satty`, and available Niri portal/session packages.
 
-Noctalia v5 note: this repo tracks config and a `noctalia-v5` launcher wrapper, but does not install the alpha v5 shell itself. Install or update v5 from upstream docs: <https://docs.noctalia.dev/v5/getting-started/installation>. If you are building v5 from source, you can ask the bootstrap to install known build dependencies with `INSTALL_NOCTALIA_V5_DEPS=1 PROFILE=desktop-niri bash bootstrap.sh`.
+Noctalia V5 note: the `noctalia` package tracks the canonical `~/.config/noctalia` config, but does not install the shell itself. Install or update V5 from upstream docs: <https://docs.noctalia.dev/v5/getting-started/installation>. If you are building V5 from source, you can ask the bootstrap to install known build dependencies with `INSTALL_NOCTALIA_V5_DEPS=1 PROFILE=desktop-niri bash bootstrap.sh`.
 
 Fresh CachyOS/Niri desktop example:
 
@@ -107,7 +107,7 @@ bash bootstrap-android.sh
 - **starship** - Cross-shell prompt
 - **herdr** - Terminal workspace manager configuration
 - **claude** - AI tool configuration, installed by `PROFILE=dev` or desktop profiles
-- **niri/hypr/noctalia** - Desktop-only config, installed only by explicit desktop profiles
+- **niri/hypr/noctalia** - Desktop-only config for Noctalia V5, installed only by explicit desktop profiles
 - **scripts** - Portable helper scripts used by shell, tmux, and Neovim profiles
 - **vpn-split** - Transitional Linux-specific VPN helpers, installed only by `PROFILE=asahi`
 
@@ -123,7 +123,9 @@ dotfiles/
 │           ├── init.lua
 │           └── lua/
 ├── tmux/
-│   └── .tmux.conf
+│   └── .config/
+│       └── tmux/
+│           └── tmux.conf
 ├── git/
 │   └── .gitconfig
 ├── starship/
@@ -139,7 +141,7 @@ dotfiles/
 ├── claude/            # dev profile
 ├── niri/              # desktop profiles
 ├── hypr/              # desktop profiles
-├── noctalia*/         # desktop profiles
+├── noctalia/          # Noctalia V5; desktop profiles
 ├── scripts/           # portable helper scripts
 └── vpn-split/         # asahi transitional profile
 ```
@@ -168,6 +170,10 @@ PROFILE=cli ./bootstrap.sh
 ```
 
 ## Customization
+
+Host-specific Git settings belong in `~/.gitconfig.local`, which the tracked
+Git config includes automatically. This keeps machine-only paths such as
+`safe.directory` entries out of the portable repository.
 
 ### Environment Variables
 
@@ -218,6 +224,7 @@ The `vpn-split` package is Linux-specific and is not part of the default `cli` p
 - `~/.local/bin/wg-kill-switch-off`
 - `~/.local/bin/wg-status-proton`
 - `~/.local/bin/wg-status-home`
+- `~/.config/noctalia/wireguard-widgets.toml` and its scripted widget runtime
 - `~/.local/bin/wg-status-killswitch`
 - `~/.local/bin/wg-toggle-proton`
 - `~/.local/bin/wg-toggle-home`
