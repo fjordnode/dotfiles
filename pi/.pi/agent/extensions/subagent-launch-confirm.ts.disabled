@@ -1,0 +1,49 @@
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+type SubagentInput = {
+  action?: unknown;
+  agent?: unknown;
+  task?: unknown;
+  workflowScript?: unknown;
+};
+
+const MAX_TASK_PREVIEW = 500;
+
+function preview(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized.length > MAX_TASK_PREVIEW
+    ? `${normalized.slice(0, MAX_TASK_PREVIEW - 1)}…`
+    : normalized;
+}
+
+export default function (pi: ExtensionAPI) {
+  pi.on("tool_call", async (event, ctx) => {
+    if (event.toolName !== "subagent") return;
+
+    const input = event.input as SubagentInput;
+    if (typeof input.action === "string" && input.action.trim()) return;
+
+    const agent = typeof input.agent === "string" ? input.agent : undefined;
+    const task = preview(input.task);
+    const workflow = preview(input.workflowScript);
+    const details = agent
+      ? `Agent: ${agent}${task ? `\nTask: ${task}` : ""}`
+      : `Workflow launch${workflow ? `\n${workflow}` : ""}`;
+
+    if (!ctx.hasUI) {
+      return {
+        block: true,
+        reason: "Subagent launch blocked: this session has no UI for user confirmation.",
+      };
+    }
+
+    const approved = await ctx.ui.confirm(
+      "Launch subagent?",
+      `${details}\n\nApprove this child-agent launch?`,
+    );
+    if (!approved) {
+      return { block: true, reason: "Subagent launch declined by user." };
+    }
+  });
+}

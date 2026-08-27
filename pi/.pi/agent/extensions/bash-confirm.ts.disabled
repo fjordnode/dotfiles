@@ -1,0 +1,60 @@
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+type BashInput = { command?: unknown };
+
+const MAX_PREVIEW = 700;
+
+const guardedCommands: Array<{ reason: string; pattern: RegExp }> = [
+  { reason: "remote access or transfer", pattern: /\b(?:ssh|scp|rsync)\b/ },
+  { reason: "privileged command", pattern: /\bsudo\b/ },
+  {
+    reason: "Docker service or resource change",
+    pattern: /\bdocker\s+(?:(?:compose\s+)?(?:down|rm|stop|restart|kill|pause|unpause)|(?:container|image|volume|network|system)\s+(?:rm|prune))/,
+  },
+  {
+    reason: "Proxmox guest or API change",
+    pattern: /\b(?:qm|pct)\s+(?:create|clone|start|stop|shutdown|reboot|reset|destroy|migrate|move_disk|restore)\b|\bpvesh\s+(?:create|set|delete)\b/,
+  },
+  {
+    reason: "firewall or network configuration change",
+    pattern: /\b(?:iptables|ip6tables|nft|ufw|firewall-cmd)\b|\bip\s+(?:link|addr|route)\s+(?:add|del|delete|replace|set)\b|\bnetworkctl\s+(?:reload|reconfigure|up|down)\b|\bnmcli\b.*\b(?:modify|delete|up|down|connect|disconnect)\b/,
+  },
+  { reason: "irreversible local operation", pattern: /\brm\s+(?:-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*|-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*|--(?:recursive|force))\b|\bmkfs(?:\.[\w-]+)?\b|\bdd\b.*\bof=|\b(?:reboot|poweroff|shutdown)\b/ },
+  { reason: "history-rewriting Git operation", pattern: /\bgit\s+push\b[^\n]*\s--force(?:-with-lease)?\b|\bgit\s+reset\s+--hard\b|\bgit\s+clean\b[^\n]*\s-[^\n]*f/ },
+];
+
+function preview(command: string): string {
+  const normalized = command.trim();
+  return normalized.length > MAX_PREVIEW
+    ? `${normalized.slice(0, MAX_PREVIEW - 1)}…`
+    : normalized;
+}
+
+function guardReason(command: string): string | undefined {
+  return guardedCommands.find((guard) => guard.pattern.test(command))?.reason;
+}
+
+export default function (pi: ExtensionAPI) {
+  pi.on("tool_call", async (event, ctx) => {
+    if (event.toolName !== "bash") return;
+
+    const command = (event.input as BashInput).command;
+    if (typeof command !== "string") return;
+
+    const reason = guardReason(command);
+    if (!reason) return;
+
+    if (!ctx.hasUI) {
+      return {
+        block: true,
+        reason: `Blocked ${reason}: this session has no UI for confirmation.`,
+      };
+    }
+
+    const approved = await ctx.ui.confirm(
+      `Confirm ${reason}`,
+      `The agent wants to run:\n\n${preview(command)}\n\nAllow it?`,
+    );
+    if (!approved) return { block: true, reason: `${reason} declined by user.` };
+  });
+}

@@ -33,7 +33,7 @@ PROFILE=asahi bash bootstrap.sh
 Profile packages:
 
 - `cli`: `zsh`, `tmux`, `git`, `nvim`, `starship`, `eza`, `bat`, `yazi`, `scripts`, `herdr`
-- `dev`: `cli` plus `claude`
+- `dev`: `cli` plus shared agent skills, `claude`, and the pinned Pi setup
 - `desktop-niri`: `dev` plus `kitty`, `ghostty`, `niri`, and Noctalia V5
 - `desktop-hypr`: `dev` plus `kitty`, `ghostty`, `hypr`, and Noctalia V5
 - `desktop`: both desktop compositor configs
@@ -106,7 +106,9 @@ bash bootstrap-android.sh
 - **bat/eza/yazi** - CLI tool configuration
 - **starship** - Cross-shell prompt
 - **herdr** - Terminal workspace manager configuration
-- **claude** - AI tool configuration, installed by `PROFILE=dev` or desktop profiles
+- **agents** - Shared `~/.agents/skills` used by Pi, Claude, and other compatible agents
+- **claude** - Claude configuration, installed by `PROFILE=dev` or desktop profiles
+- **pi** - Pi settings, extensions, themes, and pinned package declarations; credentials and runtime state remain local
 - **niri/hypr/noctalia** - Desktop-only config for Noctalia V5, installed only by explicit desktop profiles
 - **scripts** - Portable helper scripts used by shell, tmux, and Neovim profiles
 - **vpn-split** - Transitional Linux-specific VPN helpers, installed only by `PROFILE=asahi`
@@ -138,7 +140,9 @@ dotfiles/
 │   └── .config/
 │       └── herdr/
 │           └── config.toml
+├── agents/            # shared agent skills; dev profile
 ├── claude/            # dev profile
+├── pi/                # Pi config and custom resources; dev profile
 ├── niri/              # desktop profiles
 ├── hypr/              # desktop profiles
 ├── noctalia/          # Noctalia V5; desktop profiles
@@ -194,7 +198,16 @@ SET_DEFAULT_SHELL=0 bash bootstrap.sh
 
 # Install a specific profile
 PROFILE=desktop-niri bash bootstrap.sh
+
+# Override the pinned Pi release if intentionally testing another version
+PI_VERSION=0.84.3 PROFILE=dev bash bootstrap.sh
 ```
+
+### Pi
+
+The `dev` and desktop profiles install Pi `0.84.3`, stow its declarative config, and reconcile the exact npm/Git package versions pinned in `pi/.pi/agent/settings.json`. Run `pi` and use `/login` separately on each machine.
+
+The Stow package deliberately uses `--no-folding`, keeping generated files such as `auth.json`, sessions, package checkouts, caches, and logs under the real `~/.pi/agent` directory rather than inside this repository. Pi auto-mode safety controls also remain machine-local and are excluded from Stow/Git. Shared skills are managed by the separate `agents` Stow package for reuse across coding agents.
 
 ### Adding New Configs
 

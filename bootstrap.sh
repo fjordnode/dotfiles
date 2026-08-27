@@ -12,6 +12,7 @@ SET_DEFAULT_SHELL="${SET_DEFAULT_SHELL:-1}"
 FULL_INSTALL="${FULL_INSTALL:-1}"
 PROFILE="${PROFILE:-cli}"
 INSTALL_NOCTALIA_V5_DEPS="${INSTALL_NOCTALIA_V5_DEPS:-0}"
+PI_VERSION="${PI_VERSION:-0.84.3}"
 
 say() { printf '[bootstrap] %s\n' "$*"; }
 
@@ -27,6 +28,7 @@ wants_desktop() { profile_is desktop-niri desktop-hypr desktop asahi; }
 wants_niri() { profile_is desktop-niri desktop asahi; }
 wants_hypr() { profile_is desktop-hypr desktop asahi; }
 wants_noctalia_v5_deps() { [ "$INSTALL_NOCTALIA_V5_DEPS" = 1 ] && wants_desktop; }
+wants_ai() { ! profile_is cli; }
 
 # Keep this package list in sync with wants_desktop/wants_niri/wants_hypr above.
 packages_for_profile() {
@@ -35,19 +37,19 @@ packages_for_profile() {
       printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr
       ;;
     dev)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr agents claude pi
       ;;
     desktop-niri)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty niri noctalia
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr agents claude pi kitty ghostty niri noctalia
       ;;
     desktop-hypr)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty hypr noctalia
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr agents claude pi kitty ghostty hypr noctalia
       ;;
     desktop)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty niri hypr noctalia
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr agents claude pi kitty ghostty niri hypr noctalia
       ;;
     asahi)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr claude kitty ghostty niri hypr noctalia vpn-split
+      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts herdr agents claude pi kitty ghostty niri hypr noctalia vpn-split
       ;;
     *)
       say "Unknown PROFILE=$PROFILE"
@@ -277,32 +279,48 @@ fi
 # 3) Apply dotfiles with stow BEFORE installing oh-my-zsh
 # This ensures OUR configs are in place first
 cd "$DEST"
-PKGS=""
-PKG_DIRS=()
+PKGS=()
+STATEFUL_PKGS=()
 while IFS= read -r pkg; do
-  PKG_DIRS+=("$pkg")
+  [ -d "$pkg" ] || continue
+  case "$pkg" in
+    agents|pi) STATEFUL_PKGS+=("$pkg") ;;
+    *) PKGS+=("$pkg") ;;
+  esac
 done < <(packages_for_profile)
 
-for d in "${PKG_DIRS[@]}"; do
-  if [ -d "$d" ]; then
-    PKGS="$PKGS $d"
-  fi
-done
-
-PKGS="${PKGS# }"  # Trim leading space
-
-if [ -n "$PKGS" ]; then
-  say "Applying dotfiles: $PKGS"
+if [ "${#PKGS[@]}" -gt 0 ] || [ "${#STATEFUL_PKGS[@]}" -gt 0 ]; then
+  say "Applying dotfiles: ${PKGS[*]} ${STATEFUL_PKGS[*]}"
   # Remove any existing config files that might interfere (they're probably from old installs)
   [ -f "$HOME/.zshrc" ] && [ ! -L "$HOME/.zshrc" ] && mv "$HOME/.zshrc" "$HOME/.zshrc.backup"
-  
-  # Apply our configs
-  stow -v -R -t "$HOME" $PKGS
+
+  [ "${#PKGS[@]}" -eq 0 ] || stow -v -R -t "$HOME" "${PKGS[@]}"
+  # Keep runtime/auth files outside the repository instead of folding these
+  # stateful directories into a single symlink.
+  for pkg in "${STATEFUL_PKGS[@]}"; do
+    stow -v -R --no-folding -t "$HOME" "$pkg"
+  done
 else
   say "No stow packages found. Check your dotfiles structure."
 fi
 
-# 4) NOW install oh-my-zsh (AFTER stowing, so it sees our .zshrc exists)
+# 4) Install the pinned Pi release and reconcile its pinned packages.
+if wants_ai; then
+  if ! command -v pi >/dev/null 2>&1 || [ "$(pi --version 2>/dev/null || true)" != "$PI_VERSION" ]; then
+    if command -v npm >/dev/null 2>&1; then
+      say "Installing Pi $PI_VERSION..."
+      npm install -g --ignore-scripts "@earendil-works/pi-coding-agent@$PI_VERSION"
+    else
+      say "npm is unavailable; install Node.js/npm, then rerun to install Pi $PI_VERSION."
+    fi
+  fi
+  if command -v pi >/dev/null 2>&1; then
+    say "Reconciling pinned Pi packages..."
+    pi update --extensions || say "Pi package reconciliation failed; retry with: pi update --extensions"
+  fi
+fi
+
+# 5) NOW install oh-my-zsh (AFTER stowing, so it sees our .zshrc exists)
 if [ "$INSTALL_OMZ" = 1 ]; then
   if [ ! -d "$HOME/.oh-my-zsh" ]; then
     say "Installing Oh My Zsh..."

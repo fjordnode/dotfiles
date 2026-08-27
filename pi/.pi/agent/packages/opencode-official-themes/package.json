@@ -1,0 +1,11 @@
+{
+  "name": "pi-opencode-official-themes",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Themes ported from OpenCode's official TUI theme definitions.",
+  "license": "MIT",
+  "keywords": ["pi-package", "pi-theme", "opencode"],
+  "pi": {
+    "themes": ["./themes"]
+  }
+}
