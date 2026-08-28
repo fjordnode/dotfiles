@@ -16,10 +16,10 @@ say() { printf '[bootstrap-android] %s\n' "$*"; }
 packages_for_profile() {
   case "$PROFILE" in
     cli)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts
+      printf '%s\n' zsh git nvim starship eza bat yazi scripts
       ;;
     dev)
-      printf '%s\n' zsh tmux git nvim starship eza bat yazi scripts claude
+      printf '%s\n' zsh git nvim starship eza bat yazi scripts claude
       ;;
     *)
       say "Unsupported Termux PROFILE=$PROFILE"
@@ -52,7 +52,7 @@ install_pkgs() {
   
   if [ "$FULL_INSTALL" = 1 ]; then
     # Full development environment packages for Termux
-    PKGS_DEV="tmux tree gh openssh less file ripgrep fd build-essential neovim procps htop jq python fzf bat eza zoxide nodejs starship"
+    PKGS_DEV="tree gh openssh less file ripgrep fd build-essential neovim procps htop jq python fzf bat eza zoxide nodejs starship"
     say "Installing full development environment..."
     pkg install -y $PKGS_CORE $PKGS_DEV
   else
@@ -65,7 +65,7 @@ install_pkgs() {
 need=0
 if [ "$FULL_INSTALL" = 1 ]; then
   # Check for all the tools we need
-  for c in git stow curl wget tmux nvim tree gh less rg fd htop jq python fzf bat eza zoxide starship; do
+  for c in git stow curl wget nvim tree gh less rg fd htop jq python fzf bat eza zoxide starship; do
     command -v "$c" >/dev/null 2>&1 || need=1
   done
 else
@@ -145,14 +145,7 @@ if command -v nvim >/dev/null 2>&1 && [ -d "$HOME/.config/nvim" ]; then
   nvim --headless "+Lazy! sync" +qa 2>/dev/null || true
 fi
 
-# 6) Install TPM (Tmux Plugin Manager)
-if command -v tmux >/dev/null 2>&1 && [ ! -d "$HOME/.local/share/tmux/plugins/tpm" ]; then
-  say "Installing TPM (Tmux Plugin Manager)..."
-  mkdir -p "$HOME/.local/share/tmux/plugins"
-  git clone https://github.com/tmux-plugins/tpm "$HOME/.local/share/tmux/plugins/tpm"
-fi
-
-# 7) Install NVM (Node Version Manager) if not already installed via pkg
+# 6) Install NVM (Node Version Manager) if not already installed via pkg
 if [ "$FULL_INSTALL" = 1 ] && [ ! -d "$HOME/.nvm" ] && ! command -v node >/dev/null 2>&1; then
   say "Installing NVM (Node Version Manager)..."
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash

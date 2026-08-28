@@ -34,9 +34,8 @@ if [ -n "$id" ]; then
     exit 0
 fi
 
-tmux has-session -t "$session" >/dev/null 2>&1 || tmux new-session -d -s "$session"
-tmux setw -t "$session" pane-border-status off >/dev/null 2>&1 || true
-kitty --detach --single-instance --instance-group "$app_id" --class "$app_id" --title Scratchpad -e tmux attach-session -t "$session"
+command -v herdr >/dev/null 2>&1 || { printf 'herdr is not installed\n' >&2; exit 127; }
+kitty --detach --single-instance --instance-group "$app_id" --class "$app_id" --title Scratchpad -e herdr --session "$session"
 
 for _ in {1..30}; do
     id=$(window_id)

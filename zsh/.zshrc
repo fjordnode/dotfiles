@@ -7,7 +7,8 @@ export ZSH="$HOME/.oh-my-zsh"
 # zsh-opencode-tab configuration (must be set before plugins load)
 export Z_OC_TAB_OPENCODE_MODEL="anthropic/claude-haiku-4-5"
 
-# Plugins
+# Built-in Oh My Zsh plugins. Optional plugins are added only when installed,
+# so this file also starts cleanly on a fresh machine.
 plugins=(
   git
   z                              # Jump to frequent directories
@@ -17,13 +18,16 @@ plugins=(
   command-not-found              # Suggest packages to install
   colored-man-pages              # Better man page readability
   aliases                        # 'acs' to list all aliases
-  zsh-completions
   history-substring-search
-  zsh-autosuggestions
-  zsh-syntax-highlighting
-  fzf-tab                        # Better tab completion with fzf
-  zsh-opencode-tab               # AI-powered command generation (# comment<TAB>)
 )
+ZSH_CUSTOM="${ZSH_CUSTOM:-$ZSH/custom}"
+[[ -d "$ZSH_CUSTOM/plugins/zsh-completions" ]] && plugins+=(zsh-completions)
+[[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]] && plugins+=(zsh-autosuggestions)
+[[ -d "$ZSH_CUSTOM/plugins/fzf-tab" ]] && plugins+=(fzf-tab)
+[[ -d "$ZSH_CUSTOM/plugins/zsh-opencode-tab" ]] && plugins+=(zsh-opencode-tab)
+# Syntax highlighting should be loaded last.
+[[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]] && plugins+=(zsh-syntax-highlighting)
+
 # PATH exports
 export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/.local/nvim/bin:$PATH"
@@ -46,9 +50,9 @@ fi
 [ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
 
 # Editor and terminal settings
-export EDITOR=nvim
-export TERM=xterm-256color
-export LS_COLORS="$LS_COLORS:ow=01;36:tw=01;34:"
+export EDITOR="${EDITOR:-nvim}"
+export TERM="${TERM:-xterm-256color}"
+export LS_COLORS="${LS_COLORS:-}:ow=01;36:tw=01;34:"
 export CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1
 
 # Aliases
@@ -56,8 +60,23 @@ alias c='clear'
 alias ll='ls -lah --color=auto'
 alias la='ls -A'
 alias v='nvim'
-alias zv='znvim'
 alias mosh="MOSH_TITLE_NOPREFIX=1 mosh --predict=never"
+
+# Launch Yazi and enter the directory selected when it exits. Press Q in Yazi
+# to exit without changing the current shell directory.
+y() {
+  if ! command -v yazi >/dev/null 2>&1; then
+    print -u2 'yazi is not installed'
+    return 127
+  fi
+  local tmp cwd
+  tmp="$(mktemp -t 'yazi-cwd.XXXXXX')" || return
+  command yazi "$@" --cwd-file="$tmp"
+  cwd="$(command cat -- "$tmp")"
+  command rm -f -- "$tmp"
+  [[ -n "$cwd" && "$cwd" != "$PWD" && -d "$cwd" ]] && builtin cd -- "$cwd"
+}
+
 # Host-specific helpers
 [ -f "$HOME/.config/zsh/host.zsh" ] && source "$HOME/.config/zsh/host.zsh"
 
@@ -103,15 +122,17 @@ export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
 export FZF_DEFAULT_OPTS='--height 40% --layout=reverse --border'
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
-# Keybindings - history substring search
-bindkey -M emacs '^[[A' history-substring-search-up
-bindkey -M emacs '^[[B' history-substring-search-down
+# Keybindings - only bind plugin widgets when they were loaded successfully.
+if (( ${+widgets[history-substring-search-up]} )); then
+  bindkey -M emacs '^[[A' history-substring-search-up
+  bindkey -M emacs '^[[B' history-substring-search-down
+fi
 
 # Load custom functions
 [ -f "$HOME/.local/share/shell-functions.sh" ] && source "$HOME/.local/share/shell-functions.sh"
 [ -f ~/.local/bin/rm-safety ] && source ~/.local/bin/rm-safety
 for function_file in "$HOME/.local/share/zsh/functions"/*.zsh(N); do
-  source "$function_file"
+  [[ -r "$function_file" ]] && source "$function_file"
 done
 unset function_file
 
@@ -122,7 +143,7 @@ zstyle ':completion:*' special-dirs false
 # Starship prompt
 command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
 
-# Theme reload via FIFO — safe alternative to SIGUSR1 (won't kill tmux/TUIs)
+# Theme reload via FIFO — safe alternative to SIGUSR1 (won't kill TUIs)
 _theme_reload_setup() {
   local fifo="/tmp/zsh-reload-$$"
   [[ -p "$fifo" ]] || mkfifo "$fifo" 2>/dev/null
@@ -149,8 +170,8 @@ precmd() {
 # Load local customizations
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
 
-# Default file permissions
-umask 002
+# Conservative default; host-specific overrides can go in ~/.zshrc.local.
+umask 022
 
 export PATH="$HOME/.local/npm-global/bin:$PATH"
 
@@ -167,3 +188,6 @@ export NVM_DIR="$HOME/.nvm"
 
 # Pi standalone installer (uses a stable `current` symlink)
 [ -d "$HOME/.local/share/pi-node/current/bin" ] && export PATH="$HOME/.local/share/pi-node/current/bin:$PATH"
+
+# opencode
+[ -d "$HOME/.opencode/bin" ] && export PATH="$HOME/.opencode/bin:$PATH"

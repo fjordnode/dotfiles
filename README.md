@@ -1,53 +1,78 @@
 # Dotfiles Core
 
-Portable CLI/development configuration managed with GNU Stow. The default install is safe for headless systems, SSH-only hosts, containers, and general Linux/macOS machines.
-
-Desktop/Wayland configuration is opt-in through profiles and should eventually live in a separate `dotfiles-desktop` repo. Fedora Asahi hardware/system recovery should stay in `asahi-dotfiles`.
+Portable CLI/development configuration managed with GNU Stow. The bootstrap is interactive, rerunnable, and supports Arch/CachyOS (`pacman`), Debian/Ubuntu, Fedora, openSUSE, and Homebrew.
 
 ## Quick Install
+
+For the safest flow, download and review the script before running it:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/fjordnode/dotfiles/main/bootstrap.sh
+less bootstrap.sh
+bash bootstrap.sh
+```
+
+Running it directly is also supported; the checklist reads from the terminal even when the script itself is piped:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/fjordnode/dotfiles/main/bootstrap.sh | bash
 ```
 
-The default profile is `cli` and only stows portable terminal/dev config.
+The first screen selects the setup type:
 
-### Profiles
+- **CLI** (the safe default) hides graphical desktop applications and configs.
+- **Desktop** shows the complete catalog, including Wayland and compositor tools.
 
-```bash
-# Portable CLI/dev config only
-PROFILE=cli bash bootstrap.sh
+Then use **Space** to select items, **↑/↓** (or `j`/`k`) to move, **Enter** to accept, **Esc** to return to the previous step, and `q` to cancel. Applications are grouped by category and alphabetized within each category. The remaining checklists cover:
 
-# CLI/dev plus AI tool config
-PROFILE=dev bash bootstrap.sh
+1. system packages to install;
+2. config packages to link with Stow—the matching configs for selected applications are preselected automatically;
+3. optional setup actions such as an APT system upgrade, Oh My Zsh, or changing the login shell.
 
-# Explicit desktop installs
-PROFILE=desktop-niri bash bootstrap.sh
-PROFILE=desktop-hypr bash bootstrap.sh
-PROFILE=desktop bash bootstrap.sh
+The config suggestions are only defaults: you can toggle any of them before continuing. An explicit `--configs` list remains authoritative in automated runs.
 
-# Transitional Asahi profile; system recovery belongs in asahi-dotfiles
-PROFILE=asahi bash bootstrap.sh
-```
+Before changing anything, the script prints the complete plan and asks for confirmation. It does not:
 
-Profile packages:
+- overwrite conflicting files or use `stow --adopt`; optional conflict backups are explicit and preserved under `~/.local/state`;
+- pull or modify an existing Git checkout;
+- install unselected package bundles;
+- change the login shell unless selected;
+- run plugin installers unless selected;
+- run as root.
 
-- `cli`: `zsh`, `tmux`, `git`, `nvim`, `starship`, `eza`, `bat`, `yazi`, `scripts`, `herdr`
-- `dev`: `cli` plus shared agent skills, `claude`, and the pinned Pi setup
-- `desktop-niri`: `dev` plus `kitty`, `ghostty`, `niri`, and Noctalia V5
-- `desktop-hypr`: `dev` plus `kitty`, `ghostty`, `hypr`, and Noctalia V5
-- `desktop`: both desktop compositor configs
-- `asahi`: transitional profile with desktop config and `vpn-split`; Asahi hardware/system recovery lives in `~/asahi-dotfiles`
+Stow first performs a simulation for each selected config. A conflicting config is skipped while the other selected configs continue.
 
-Desktop profiles also install the main runtime packages they depend on when the system package manager is supported. On Arch/CachyOS, `PROFILE=desktop-niri` installs common Wayland/Niri tools such as `wl-clipboard`, `cliphist`, `wtype`, `brightnessctl`, `playerctl`, `pavucontrol`, `kitty`, `firefox`, `satty`, and available Niri portal/session packages.
+### Arch/CachyOS
 
-Noctalia V5 note: the `noctalia` package tracks the canonical `~/.config/noctalia` config, but does not install the shell itself. Install or update V5 from upstream docs: <https://docs.noctalia.dev/v5/getting-started/installation>. If you are building V5 from source, you can ask the bootstrap to install known build dependencies with `INSTALL_NOCTALIA_V5_DEPS=1 PROFILE=desktop-niri bash bootstrap.sh`.
-
-Fresh CachyOS/Niri desktop example:
+Arch packages use `pacman -S --needed` without a separate `pacman -Sy`, avoiding an unsafe partial-upgrade database refresh. Update the machine normally before bootstrapping if its package database is stale:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fjordnode/dotfiles/main/bootstrap.sh | PROFILE=desktop-niri bash
+sudo pacman -Syu
+./bootstrap.sh
 ```
+
+### Debian/Ubuntu package sources
+
+APT is used for foundational and system-integrated packages. The optional **APT system upgrade** action runs `apt-get update` followed by `apt-get upgrade -y` before installing selected packages; it is disabled by default and preserves existing package configuration files. Fast-moving CLI tools—Starship, bat, eza, fd, fzf, Neovim, ripgrep, Yazi, and zoxide—come from their latest official GitHub release instead of Debian's older packages. They are installed version-by-version under `~/.local/share/dotfiles-tools/` and linked from `~/.local/bin/`.
+
+The bootstrap does not add third-party APT repositories or overwrite an unmanaged file in `~/.local/bin`. Release checksums are verified when the upstream project publishes a checksum beside its asset. Supported release architectures are x86-64 and ARM64.
+
+### Dry run and automation
+
+```bash
+# Interactive preview; package installation and file changes are skipped
+./bootstrap.sh --dry-run
+
+# Fully explicit, non-interactive run
+./bootstrap.sh --non-interactive \
+  --packages 'git stow zsh neovim fzf ripgrep fd' \
+  --configs 'git zsh nvim scripts' \
+  --actions 'oh-my-zsh zsh-plugins nvim-plugins'
+```
+
+Use `none` for an empty list. Non-interactive mode requires all three lists, which prevents an omitted variable from unexpectedly selecting defaults. `PACKAGES`, `CONFIGS`, `ACTIONS`, `NONINTERACTIVE=1`, and `DRY_RUN=1` are equivalent environment controls.
+
+The script requires Bash 4.3 or newer. Current Arch Linux satisfies this requirement.
 
 ### Termux (Android)
 
@@ -101,17 +126,16 @@ bash bootstrap-android.sh
 
 - **zsh** - Shell configuration with oh-my-zsh
 - **nvim** - Neovim configuration with Lazy.nvim and plugins
-- **tmux** - Terminal multiplexer configuration  
 - **git** - Git configuration and aliases
 - **bat/eza/yazi** - CLI tool configuration
 - **starship** - Cross-shell prompt
-- **herdr** - Terminal workspace manager configuration
+- **herdr** - Terminal workspace manager runtime and configuration
 - **agents** - Shared `~/.agents/skills` used by Pi, Claude, and other compatible agents
-- **claude** - Claude configuration, installed by `PROFILE=dev` or desktop profiles
-- **pi** - Pi settings, extensions, themes, and pinned package declarations; credentials and runtime state remain local
-- **niri/hypr/noctalia** - Desktop-only config for Noctalia V5, installed only by explicit desktop profiles
-- **scripts** - Portable helper scripts used by shell, tmux, and Neovim profiles
-- **vpn-split** - Transitional Linux-specific VPN helpers, installed only by `PROFILE=asahi`
+- **claude** - Claude configuration, available as an explicit config selection
+- **pi** - Pi coding-agent runtime plus settings, extensions, themes, and pinned package declarations; credentials and runtime state remain local
+- **niri/hypr/noctalia** - Desktop configs, each selected independently
+- **scripts** - Small shell helpers for SSH forwarding, archives, OSC 52, safer removal, and directory listing
+- **vpn-split** - Advanced Linux-specific VPN helpers, never selected by default
 
 ## Directory Structure
 
@@ -124,10 +148,6 @@ dotfiles/
 │       └── nvim/
 │           ├── init.lua
 │           └── lua/
-├── tmux/
-│   └── .config/
-│       └── tmux/
-│           └── tmux.conf
 ├── git/
 │   └── .gitconfig
 ├── starship/
@@ -140,12 +160,12 @@ dotfiles/
 │   └── .config/
 │       └── herdr/
 │           └── config.toml
-├── agents/            # shared agent skills; dev profile
-├── claude/            # dev profile
-├── pi/                # Pi config and custom resources; dev profile
-├── niri/              # desktop profiles
-├── hypr/              # desktop profiles
-├── noctalia/          # Noctalia V5; desktop profiles
+├── agents/            # shared agent skills
+├── claude/            # Claude config
+├── pi/                # Pi config and custom resources
+├── niri/              # Niri desktop config
+├── hypr/              # Hyprland desktop config
+├── noctalia/          # Noctalia V5 config
 ├── scripts/           # portable helper scripts
 └── vpn-split/         # asahi transitional profile
 ```
@@ -165,13 +185,24 @@ git push
 
 ## Updating
 
-To update your dotfiles on another machine:
+Dotfiles and applications update separately so a tool update never changes your configuration checkout unexpectedly.
+
+Update the repository after reviewing its incoming changes:
 
 ```bash
 cd ~/dotfiles
-git pull
-PROFILE=cli ./bootstrap.sh
+git pull --ff-only
+./bootstrap.sh
 ```
+
+Update applications installed under `~/.local` by the bootstrap, plus uv, Herdr, and Pi:
+
+```bash
+./update-tools.sh --dry-run
+./update-tools.sh
+```
+
+The updater detects what this bootstrap previously installed, prints the plan, and asks for confirmation. It uses the same versioned release installer, updates Neovim plugins, and runs `uv self update`, `herdr update`, and `pi update`. Normal bootstrap runs only install missing Neovim plugins; they do not update existing plugins. It deliberately does not update OS-managed packages; use the native system workflow such as `sudo apt update && sudo apt upgrade` or `sudo pacman -Syu` for those.
 
 ## Customization
 
@@ -181,31 +212,15 @@ Git config includes automatically. This keeps machine-only paths such as
 
 ### Environment Variables
 
-The bootstrap script supports several environment variables:
+For automation, `SETUP=cli|desktop`, `PACKAGES`, `CONFIGS`, and `ACTIONS` are supported; the lists accept comma- or space-separated IDs. Set all three lists together with `NONINTERACTIVE=1`. `DRY_RUN=1`, `REPO`, and `DEST` are also supported. Run `./bootstrap.sh --help` for examples.
 
-```bash
-# Skip full install (only core packages)
-FULL_INSTALL=0 bash bootstrap.sh
+### Herdr
 
-# Skip oh-my-zsh installation
-INSTALL_OMZ=0 bash bootstrap.sh
-
-# Skip starship installation  
-INSTALL_STARSHIP=0 bash bootstrap.sh
-
-# Skip setting zsh as default shell
-SET_DEFAULT_SHELL=0 bash bootstrap.sh
-
-# Install a specific profile
-PROFILE=desktop-niri bash bootstrap.sh
-
-# Override the pinned Pi release if intentionally testing another version
-PI_VERSION=0.84.3 PROFILE=dev bash bootstrap.sh
-```
+Select the `herdr` application to run Herdr's official `curl -fsSL https://herdr.dev/install.sh | sh` installer. Its config is selected automatically. When Herdr is already available, bootstrap uses the built-in `herdr update` command instead.
 
 ### Pi
 
-The `dev` and desktop profiles install Pi `0.84.3`, stow its declarative config, and reconcile the exact npm/Git package versions pinned in `pi/.pi/agent/settings.json`. Run `pi` and use `/login` separately on each machine.
+Select the `pi` application to run Pi's official `curl -fsSL https://pi.dev/install.sh | sh` installer. Its declarative `pi` config is selected automatically. The installer is skipped when `pi` is already available. Run `pi` and use `/login` separately on each machine; bootstrap never handles Pi authentication.
 
 The Stow package deliberately uses `--no-folding`, keeping generated files such as `auth.json`, sessions, package checkouts, caches, and logs under the real `~/.pi/agent` directory rather than inside this repository. Pi auto-mode safety controls also remain machine-local and are excluded from Stow/Git. Shared skills are managed by the separate `agents` Stow package for reuse across coding agents.
 
@@ -215,7 +230,7 @@ To add a new program's configuration:
 
 1. Create a new directory in `~/dotfiles`
 2. Mirror the expected structure from `$HOME`
-3. Add it to the correct profile in `bootstrap.sh`
+3. Add its ID and label to the config checklist in `bootstrap.sh`
 
 Example for adding vim config:
 ```bash
@@ -229,7 +244,7 @@ git commit -m "Add vim configuration"
 
 ### VPN Split Tunnel Package
 
-The `vpn-split` package is Linux-specific and is not part of the default `cli` profile. It stows:
+The `vpn-split` package is Linux-specific and is not selected by default. It stows:
 
 - `~/.local/bin/novpn`
 - `~/.local/bin/wg-split-up`
@@ -264,13 +279,22 @@ echo '26642 novpn' | sudo tee -a /etc/iproute2/rt_tables
 
 ### Stow Conflicts
 
-If stow reports conflicts, move the existing files aside first:
-```bash
-mv ~/.zshrc ~/.zshrc.backup
-mv ~/.tmux.conf ~/.tmux.conf.backup
-cd ~/dotfiles
-PROFILE=cli ./bootstrap.sh
+When a selected config conflicts with an existing real file, interactive runs offer to move only the conflicting targets into:
+
+```text
+~/.local/state/dotfiles-backups/<timestamp>/<stow-package>/
 ```
+
+The bootstrap then repeats its Stow simulation before applying anything. It never uses `stow --adopt`. Declining the backup skips that config and records the exact conflict in the final installation summary.
+
+For explicit non-interactive migrations:
+
+```bash
+BACKUP_CONFLICTS=1 NONINTERACTIVE=1 \
+  PACKAGES=none CONFIGS=pi ACTIONS=none ./bootstrap.sh
+```
+
+You can also pass `--backup-conflicts` during an interactive or automated run.
 
 ### Missing Plugins
 

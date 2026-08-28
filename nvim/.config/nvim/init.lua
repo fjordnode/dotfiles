@@ -29,7 +29,7 @@ vim.keymap.set('v', '<LeftRelease>', '"+y<LeftRelease>', { desc = 'Copy mouse se
 vim.keymap.set('v', '<2-LeftMouse>', '"+y<2-LeftMouse>', { desc = 'Copy double-click selection to clipboard' })
 
 -- OSC 52 clipboard. Neovim writes the sequence through its active UI, allowing
--- tmux (set-clipboard=on) and SSH/Mosh to forward it to the local terminal.
+-- SSH/Mosh and compatible terminals can forward it to the local clipboard.
 local osc52 = require('vim.ui.clipboard.osc52')
 vim.g.clipboard = {
   name = 'OSC 52',

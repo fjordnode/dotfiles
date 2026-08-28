@@ -1,12 +1,4 @@
 #!/bin/sh
-# OSC 52 script that works with tmux copy-pipe
-
-# tmux knows how to advertise and forward clipboard contents to its attached
-# terminal. This keeps copy-mode working through local and remote tmux sessions.
-if [ -n "$TMUX" ]; then
-    tmux load-buffer -w -
-else
-    # Not in tmux, send directly to controlling terminal
-    encoded=$(base64 -w0 2>/dev/null || base64)
-    printf "\033]52;c;%s\a" "$encoded" > /dev/tty 2>/dev/null
-fi
+# Copy stdin to the local terminal clipboard through OSC 52.
+encoded=$(base64 -w0 2>/dev/null || base64)
+printf '\033]52;c;%s\a' "$encoded" > /dev/tty 2>/dev/null

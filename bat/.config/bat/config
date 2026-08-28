@@ -1,5 +1,5 @@
 # Bat configuration
-# Set theme to Catppuccin Mocha (matches your tmux/nvim theme)
+# Set theme to Catppuccin Mocha.
 --theme="Catppuccin-mocha"
 
 # Show line numbers
