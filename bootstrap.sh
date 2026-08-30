@@ -2,10 +2,23 @@
 # Interactive, conflict-safe dotfiles bootstrap for Arch Linux and other common systems.
 set -Eeuo pipefail
 
-((BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3))) || {
-  printf '[bootstrap] ERROR: Bash 4.3 or newer is required (found %s).\n' "$BASH_VERSION" >&2
+if ! ((BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3))); then
+  # A downloaded script can transparently switch to Homebrew Bash on macOS.
+  # A piped script cannot be replayed, so its error explains the required command.
+  if [[ ${OSTYPE:-} == darwin* ]]; then
+    for bash_candidate in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+      if [[ -x $bash_candidate ]] && "$bash_candidate" -c '((BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3)))'; then
+        script_path=${BASH_SOURCE[0]:-}
+        if [[ -n $script_path && -f $script_path ]]; then
+          PATH="${bash_candidate%/*}:$PATH" exec "$bash_candidate" "$script_path" "$@"
+        fi
+      fi
+    done
+  fi
+  printf '[bootstrap] ERROR: Bash 4.3 or newer is required (found %s). On macOS, install Homebrew Bash and invoke this script with it.\n' "$BASH_VERSION" >&2
   exit 1
-}
+fi
+unset bash_candidate script_path
 
 REPO="${REPO:-https://github.com/fjordnode/dotfiles.git}"
 DEST="${DEST:-$HOME/dotfiles}"
@@ -19,13 +32,21 @@ UPDATE_MODE="${UPDATE_MODE:-0}"
 BACKUP_CONFLICTS="${BACKUP_CONFLICTS:-0}"
 ISSUES=()
 NOTICES=()
+FATAL_ERROR=''
+LAST_ERROR=''
+SUMMARY_ENABLED=0
+SUMMARY_PRINTED=0
 
 say() { printf '[bootstrap] %s\n' "$*"; }
 warn() {
   printf '[bootstrap] WARNING: %s\n' "$*" >&2
   ISSUES+=("$*")
 }
-die() { printf '[bootstrap] ERROR: %s\n' "$*" >&2; exit 1; }
+die() {
+  FATAL_ERROR=$*
+  printf '[bootstrap] ERROR: %s\n' "$*" >&2
+  exit 1
+}
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 usage() {
@@ -91,6 +112,11 @@ elif [[ ${OSTYPE:-} == linux* ]]; then
 fi
 [[ $PM != unknown ]] || die 'Supported package manager not found (pacman, apt, dnf, zypper, or Homebrew).'
 
+DISTRO_ID=''
+if [[ $OS == linux && -r /etc/os-release ]]; then
+  DISTRO_ID=$(awk -F= '$1 == "ID" {gsub(/^"|"$/, "", $2); print $2; exit}' /etc/os-release)
+fi
+
 # Items are grouped by category and alphabetized within each category.
 PACKAGE_IDS=(
   curl git stow unzip
@@ -137,18 +163,52 @@ CONFIG_LABELS=(
 CONFIG_CATEGORIES=(Shell Shell Development Development CLI CLI CLI CLI AI AI AI AI Desktop Desktop Desktop Desktop Desktop Desktop)
 CONFIG_DEFAULTS=(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
 
-ACTION_IDS=(oh-my-zsh zsh-plugins default-shell nvim-plugins)
+ACTION_IDS=(oh-my-zsh zsh-plugins default-shell nvim-plugins cleanup-obsolete-links)
 ACTION_LABELS=(
   'clone Oh My Zsh' 'clone optional Zsh plugins' 'change login shell to Zsh' 'install missing Neovim plugins'
+  'remove obsolete links owned by these dotfiles'
 )
-ACTION_CATEGORIES=(Shell Shell Shell Development)
-ACTION_DEFAULTS=(0 0 0 0)
+ACTION_CATEGORIES=(Shell Shell Shell Development Maintenance)
+ACTION_DEFAULTS=(0 0 0 0 0)
 if [[ $PM == apt ]]; then
   ACTION_IDS+=(system-upgrade)
   ACTION_LABELS+=('update APT metadata and upgrade installed packages')
   ACTION_CATEGORIES+=(System)
   ACTION_DEFAULTS+=(0)
 fi
+
+package_supported_on_pm() {
+  local id=$1
+  case "$PM:$id" in
+    # These are not available from the standard Debian 13 repositories. Their
+    # configs remain selectable for users who install them separately.
+    apt:ghostty|apt:hypridle|apt:hyprland|apt:hyprlock|apt:niri|apt:portal-hyprland|apt:satty|apt:xwayland-satellite) return 1 ;;
+    # Linux-only integration packages do not have Homebrew formulae.
+    brew:build-tools|brew:procps|brew:networkmanager|brew:bluez|brew:brightnessctl|brew:pavucontrol|brew:wtype|brew:cliphist|brew:niri|brew:xwayland-satellite|brew:portal-gnome|brew:portal-gtk|brew:hyprland|brew:hyprlock|brew:hypridle|brew:portal-hyprland) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+UNSUPPORTED_PACKAGE_IDS=()
+filter_package_manager_catalog() {
+  local i
+  local -a ids=() labels=() categories=() defaults=()
+  for ((i=0; i<${#PACKAGE_IDS[@]}; i++)); do
+    if ! package_supported_on_pm "${PACKAGE_IDS[i]}"; then
+      UNSUPPORTED_PACKAGE_IDS+=("${PACKAGE_IDS[i]}")
+      continue
+    fi
+    ids+=("${PACKAGE_IDS[i]}")
+    labels+=("${PACKAGE_LABELS[i]}")
+    categories+=("${PACKAGE_CATEGORIES[i]}")
+    defaults+=("${PACKAGE_DEFAULTS[i]}")
+  done
+  PACKAGE_IDS=("${ids[@]}")
+  PACKAGE_LABELS=("${labels[@]}")
+  PACKAGE_CATEGORIES=("${categories[@]}")
+  PACKAGE_DEFAULTS=("${defaults[@]}")
+}
+filter_package_manager_catalog
 
 FULL_PACKAGE_IDS=("${PACKAGE_IDS[@]}")
 FULL_PACKAGE_LABELS=("${PACKAGE_LABELS[@]}")
@@ -174,12 +234,54 @@ ui_leave() {
     UI_ACTIVE=0
   fi
 }
+
+print_installation_summary() {
+  [[ ${SUMMARY_PRINTED:-0} == 0 ]] || return 0
+  SUMMARY_PRINTED=1
+  printf '\n========== Installation summary ==========\n'
+  if ((${#NOTICES[@]})); then
+    printf 'Completed with backups/notices:\n'
+    for message in "${NOTICES[@]}"; do printf '  - %s\n' "$message"; done
+  fi
+  if ((${#ISSUES[@]})); then
+    printf 'Warnings, errors, or skipped operations:\n'
+    for message in "${ISSUES[@]}"; do printf '  - %s\n' "$message"; done
+    printf 'Review the messages above; rerunning the bootstrap is safe.\n'
+  else
+    printf 'No warnings or skipped operations.\n'
+  fi
+}
+
+record_unexpected_error() {
+  local status=$1 line=$2
+  LAST_ERROR="Unexpected command failure at bootstrap.sh:$line (exit $status)."
+}
+
+bootstrap_exit() {
+  local status=$1
+  trap - EXIT
+  ui_leave || true
+  if [[ ${SUMMARY_ENABLED:-0} == 1 && ${SUMMARY_PRINTED:-0} == 0 ]]; then
+    if [[ -n ${FATAL_ERROR:-} ]]; then
+      ISSUES+=("Fatal error: $FATAL_ERROR")
+    elif [[ -n ${LAST_ERROR:-} ]]; then
+      ISSUES+=("$LAST_ERROR")
+    elif ((status != 0)); then
+      ISSUES+=("Bootstrap stopped unexpectedly (exit $status).")
+    fi
+    print_installation_summary
+  fi
+  exit "$status"
+}
+
+trap 'record_unexpected_error "$?" "$LINENO"' ERR
+trap 'bootstrap_exit "$?"' EXIT
+
 ui_enter() {
   [[ -r /dev/tty && -w /dev/tty ]] || die 'No terminal available. Use --non-interactive with explicit lists.'
   exec 3<>/dev/tty
   printf '\033[?1049h\033[?25l' >&3
   UI_ACTIVE=1
-  trap 'ui_leave' EXIT
   trap 'ui_leave; exit 130' INT TERM HUP
 }
 
@@ -263,8 +365,12 @@ checklist() {
       j) cursor=$((cursor+1)); ((cursor>=${#ids[@]})) && cursor=0 ;;
       k) cursor=$((cursor-1)); ((cursor<0)) && cursor=$((${#ids[@]}-1)) ;;
       a)
-        local target=1
-        for i in "${checked[@]}"; do ((i)) || continue; target=0; done
+        # Select everything unless everything is already selected; only then
+        # does a second press clear the list.
+        local target=0
+        for i in "${checked[@]}"; do
+          if ((i == 0)); then target=1; break; fi
+        done
         for ((i=0; i<${#checked[@]}; i++)); do checked[i]=$target; done
         ;;
       q) ui_leave; die 'Cancelled by user.' ;;
@@ -378,6 +484,20 @@ if [[ -n $SETUP_INPUT && $SETUP_INPUT != cli && $SETUP_INPUT != desktop ]]; then
   die "Unknown setup type: $SETUP_INPUT (expected cli or desktop)"
 fi
 
+validate_package_input_support() {
+  local input=$1 normalized value
+  local -a values=()
+  [[ -n $input && $input != none ]] || return 0
+  normalized=${input//,/ }
+  read -r -a values <<< "$normalized"
+  for value in "${values[@]}"; do
+    if contains_id "$value" "${UNSUPPORTED_PACKAGE_IDS[@]}"; then
+      die "Package $value is not available through the detected $PM package source; install it separately and select its config if wanted."
+    fi
+  done
+}
+validate_package_input_support "$PACKAGES_INPUT"
+
 if [[ $NONINTERACTIVE == 1 ]]; then
   SETUP_MODE=${SETUP_INPUT:-desktop}
   restore_full_catalog
@@ -449,6 +569,105 @@ else
   ui_leave
 fi
 
+is_selected_package() { contains_id "$1" "${SELECTED_PACKAGES[@]}"; }
+is_selected_config() { contains_id "$1" "${SELECTED_CONFIGS[@]}"; }
+is_selected_action() { contains_id "$1" "${SELECTED_ACTIONS[@]}"; }
+
+package_name() {
+  local id=$1
+  if [[ $PM == apt && $id == firefox && $DISTRO_ID == debian ]]; then
+    echo firefox-esr
+    return 0
+  fi
+  case "$PM:$id" in
+    pacman:github-cli) echo github-cli ;; pacman:build-tools) echo base-devel ;; pacman:procps) echo procps-ng ;; pacman:bluez) printf '%s\n' bluez bluez-utils ;;
+    apt:starship|apt:bat|apt:eza|apt:fd|apt:fzf|apt:neovim|apt:ripgrep|apt:yazi|apt:zoxide) return 0 ;;
+    apt:github-cli) echo gh ;; apt:build-tools) echo build-essential ;; apt:openssh) echo openssh-client ;; apt:procps) echo procps ;; apt:networkmanager) echo network-manager ;;
+    dnf:github-cli) echo gh ;; dnf:build-tools) echo gcc make ;; dnf:fd) echo fd-find ;; dnf:neovim) echo neovim ;; dnf:openssh) echo openssh-clients ;; dnf:procps) echo procps-ng ;;
+    zypper:github-cli) echo gh ;; zypper:build-tools) echo gcc make ;; zypper:neovim) echo neovim ;; zypper:openssh) echo openssh ;; zypper:procps) echo procps ;;
+    brew:github-cli) echo gh ;; brew:neovim) echo neovim ;; brew:openssh) echo openssh ;;
+    *:portal-gnome) echo xdg-desktop-portal-gnome ;; *:portal-gtk) echo xdg-desktop-portal-gtk ;; *:portal-hyprland) echo xdg-desktop-portal-hyprland ;;
+    *:herdr|*:pi|*:uv) return 0 ;;
+    *:build-tools) echo gcc make ;;
+    *) echo "$id" ;;
+  esac
+}
+
+SYSTEM_PACKAGES=()
+for id in "${SELECTED_PACKAGES[@]}"; do
+  while IFS= read -r name; do [[ -n $name ]] && SYSTEM_PACKAGES+=("$name"); done < <(package_name "$id")
+done
+
+validate_current_apt_metadata() {
+  [[ $PM == apt ]] || return 0
+  local phase=${1:-current} package candidate
+  local -a unavailable=()
+  command_exists apt-cache || die 'apt-cache is required to validate the selected APT packages.'
+  for package in "${SYSTEM_PACKAGES[@]}"; do
+    candidate=$(apt-cache policy "$package" 2>/dev/null | awk '$1 == "Candidate:" {print $2; exit}' || true)
+    [[ -n $candidate && $candidate != '(none)' ]] || unavailable+=("$package")
+  done
+  if ((${#unavailable[@]})); then
+    if [[ $phase == current ]]; then
+      die "Selected packages are unavailable in the current APT metadata: ${unavailable[*]}. Run sudo apt-get update, then rerun; no changes were made."
+    else
+      die "Selected packages are unavailable after refreshing APT metadata: ${unavailable[*]}. No packages were installed."
+    fi
+  fi
+}
+
+preflight_system_packages() {
+  local package
+  local -a unavailable=()
+  if [[ $PM == apt ]]; then
+    validate_current_apt_metadata current
+  elif [[ $PM == pacman ]]; then
+    for package in "${SYSTEM_PACKAGES[@]}"; do
+      pacman -Si "$package" >/dev/null 2>&1 || pacman -Q "$package" >/dev/null 2>&1 || unavailable+=("$package")
+    done
+  fi
+  ((${#unavailable[@]} == 0)) || die "Selected packages are unavailable in the current $PM metadata: ${unavailable[*]}. Update the package metadata normally, then rerun; no changes were made."
+}
+
+planned_command_available() {
+  local command_name=$1 package_id=$2
+  command_exists "$command_name" || is_selected_package "$package_id"
+}
+
+preflight_dependencies() {
+  local id
+  if [[ $PM == apt ]]; then
+    for id in starship bat eza fd fzf neovim ripgrep yazi zoxide; do
+      if is_selected_package "$id" && ! planned_command_available curl curl; then
+        die "curl is required for the selected upstream $id install; select curl and rerun."
+      fi
+    done
+  fi
+  for id in uv herdr pi; do
+    if is_selected_package "$id" && ! planned_command_available curl curl; then
+      die "curl is required to install $id; select curl and rerun."
+    fi
+  done
+  if ((${#SELECTED_CONFIGS[@]})) && ! planned_command_available stow stow; then
+    die 'GNU Stow is required for selected configs; select stow and rerun.'
+  fi
+  if ((${#SELECTED_CONFIGS[@]})) && [[ -z $SOURCE_DIR ]] && ! planned_command_available git git; then
+    die 'Git is required to clone the selected configs; select git and rerun.'
+  fi
+  if { is_selected_action oh-my-zsh || is_selected_action zsh-plugins; } && ! planned_command_available git git; then
+    die 'Git is required for the selected Zsh setup actions; select git and rerun.'
+  fi
+  if is_selected_action default-shell && ! planned_command_available zsh zsh; then
+    die 'Zsh is required for the default-shell action; select zsh and rerun.'
+  fi
+  if is_selected_action nvim-plugins && ! planned_command_available nvim neovim; then
+    die 'Neovim is required for the nvim-plugins action; select neovim and rerun.'
+  fi
+  if [[ $DRY_RUN != 1 && $PM != brew ]] && { ((${#SYSTEM_PACKAGES[@]})) || is_selected_action system-upgrade; } && ! command_exists sudo; then
+    die "sudo is required for the selected $PM system operation."
+  fi
+}
+
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd -P || true)
 SOURCE_DIR=''
 REPO_PLAN='not needed (no configs selected)'
@@ -466,6 +685,9 @@ if ((${#SELECTED_CONFIGS[@]})); then
   fi
 fi
 
+preflight_system_packages
+preflight_dependencies
+
 join_or_none() {
   if (($#)); then
     printf '%s' "$1"
@@ -481,6 +703,9 @@ printf '  Packages:  %s\n' "$(join_or_none "${SELECTED_PACKAGES[@]}")"
 printf '  Configs:   %s\n' "$(join_or_none "${SELECTED_CONFIGS[@]}")"
 printf '  Actions:   %s\n' "$(join_or_none "${SELECTED_ACTIONS[@]}")"
 printf '  Repository: %s\n' "$REPO_PLAN"
+if [[ $PM == apt ]] && ((${#SYSTEM_PACKAGES[@]})); then
+  printf '  APT metadata: refresh before installing selected APT packages\n'
+fi
 [[ $DRY_RUN == 1 ]] && printf '  Mode:      DRY RUN (no changes)\n'
 
 if [[ $NONINTERACTIVE != 1 && $DRY_RUN != 1 ]]; then
@@ -491,7 +716,10 @@ if [[ $NONINTERACTIVE != 1 && $DRY_RUN != 1 ]]; then
   [[ $answer == y || $answer == Y ]] || die 'Cancelled; nothing was changed.'
 fi
 
-is_selected_action() { contains_id "$1" "${SELECTED_ACTIONS[@]}"; }
+# From this point onward the selected plan is being executed. Any fatal error
+# is repeated by the EXIT trap in the final summary.
+SUMMARY_ENABLED=1
+
 APT_UPDATED=0
 run_apt_system_upgrade() {
   is_selected_action system-upgrade || return 0
@@ -511,28 +739,6 @@ run_apt_system_upgrade() {
 }
 run_apt_system_upgrade
 
-package_name() {
-  local id=$1
-  case "$PM:$id" in
-    pacman:github-cli) echo github-cli ;; pacman:build-tools) echo base-devel ;; pacman:procps) echo procps-ng ;; pacman:bluez) printf '%s\n' bluez bluez-utils ;;
-    apt:starship|apt:bat|apt:eza|apt:fd|apt:fzf|apt:neovim|apt:ripgrep|apt:yazi|apt:zoxide) return 0 ;;
-    apt:github-cli) echo gh ;; apt:build-tools) echo build-essential ;; apt:openssh) echo openssh-client ;; apt:procps) echo procps ;;
-    dnf:github-cli) echo gh ;; dnf:build-tools) echo gcc make ;; dnf:fd) echo fd-find ;; dnf:neovim) echo neovim ;; dnf:openssh) echo openssh-clients ;; dnf:procps) echo procps-ng ;;
-    zypper:github-cli) echo gh ;; zypper:build-tools) echo gcc make ;; zypper:neovim) echo neovim ;; zypper:openssh) echo openssh ;; zypper:procps) echo procps ;;
-    brew:build-tools|brew:procps|brew:networkmanager|brew:bluez|brew:brightnessctl|brew:pavucontrol|brew:wtype|brew:cliphist|brew:niri|brew:xwayland-satellite|brew:portal-gnome|brew:portal-gtk|brew:hyprland|brew:hyprlock|brew:hypridle|brew:portal-hyprland) return 0 ;;
-    brew:github-cli) echo gh ;; brew:neovim) echo neovim ;; brew:openssh) echo openssh ;;
-    *:portal-gnome) echo xdg-desktop-portal-gnome ;; *:portal-gtk) echo xdg-desktop-portal-gtk ;; *:portal-hyprland) echo xdg-desktop-portal-hyprland ;;
-    *:herdr|*:pi|*:uv) return 0 ;;
-    *:build-tools) echo gcc make ;;
-    *) echo "$id" ;;
-  esac
-}
-
-SYSTEM_PACKAGES=()
-for id in "${SELECTED_PACKAGES[@]}"; do
-  while IFS= read -r name; do [[ -n $name ]] && SYSTEM_PACKAGES+=("$name"); done < <(package_name "$id")
-done
-
 run_package_install() {
   ((${#SYSTEM_PACKAGES[@]})) || return 0
   if [[ $DRY_RUN == 1 ]]; then
@@ -549,6 +755,7 @@ run_package_install() {
     pacman) "${elevate[@]}" pacman -S --needed "${SYSTEM_PACKAGES[@]}" ;;
     apt)
       if [[ $APT_UPDATED != 1 ]]; then "${elevate[@]}" apt-get update; fi
+      validate_current_apt_metadata refreshed
       "${elevate[@]}" apt-get install -y "${SYSTEM_PACKAGES[@]}"
       ;;
     dnf) "${elevate[@]}" dnf install -y "${SYSTEM_PACKAGES[@]}" ;;
@@ -557,9 +764,6 @@ run_package_install() {
   esac
 }
 run_package_install
-
-is_selected_package() { contains_id "$1" "${SELECTED_PACKAGES[@]}"; }
-is_selected_config() { contains_id "$1" "${SELECTED_CONFIGS[@]}"; }
 
 release_asset_url() {
   local json=$1 asset=$2 url
@@ -625,29 +829,45 @@ install_github_tool() {
 }
 
 install_neovim_release() {
-  local asset=$1 tag=$2 json=$3 url tmp archive extract nvim_binary release_root install_dir
+  local asset=$1 tag=$2 json=$3 url tmp archive extract install_dir install_parent stage
   url=$(release_asset_url "$json" "$asset") || die "Official Neovim release asset not found: $asset"
   install_dir="$HOME/.local/share/dotfiles-tools/neovim/$tag"
-  if [[ -x $install_dir/bin/nvim ]]; then
+  if [[ -x $install_dir/bin/nvim && -d $install_dir/share/nvim/runtime ]]; then
     managed_tool_link "$install_dir/bin/nvim" nvim
     say "Upstream Neovim $tag is already installed."
     return 0
   fi
 
+  install_parent=${install_dir%/*}
+  mkdir -p "$install_parent"
   tmp=$(mktemp -d)
+  if ! stage=$(mktemp -d "$install_parent/.install.XXXXXX"); then
+    rm -rf "$tmp"
+    die "Could not create a Neovim staging directory under $install_parent."
+  fi
   archive="$tmp/$asset"
   extract="$tmp/extract"
-  mkdir -p "$extract" "$install_dir"
   say "Installing upstream Neovim $tag..."
-  curl -fL --retry 3 -o "$archive" "$url"
-  tar -xzf "$archive" -C "$extract"
-  nvim_binary=$(find "$extract" -type f -path '*/bin/nvim' -print -quit)
-  [[ -n $nvim_binary ]] || { rm -rf "$tmp"; die "Neovim binary was missing from $asset."; }
-  release_root=${nvim_binary%/bin/nvim}
-  cp -a "$release_root/." "$install_dir/"
-  [[ -x $install_dir/bin/nvim ]] || { rm -rf "$tmp"; die 'Extracted Neovim installation is incomplete.'; }
+  if ! (
+    set -Euo pipefail
+    trap 'rm -rf "$tmp" "$stage"' EXIT
+    mkdir -p "$extract" || exit 1
+    curl -fL --retry 3 -o "$archive" "$url" || exit 1
+    tar -xzf "$archive" -C "$extract" || exit 1
+    nvim_binary=$(find "$extract" -type f -path '*/bin/nvim' -print -quit)
+    [[ -n $nvim_binary ]] || exit 1
+    release_root=${nvim_binary%/bin/nvim}
+    cp -a "$release_root/." "$stage/" || exit 1
+    [[ -x $stage/bin/nvim && -d $stage/share/nvim/runtime ]] || exit 1
+    XDG_CONFIG_HOME="$tmp/config" XDG_DATA_HOME="$tmp/data" \
+      XDG_STATE_HOME="$tmp/state" XDG_CACHE_HOME="$tmp/cache" \
+      "$stage/bin/nvim" --headless --clean -i NONE +qa || exit 1
+    rm -rf "$install_dir" || exit 1
+    mv "$stage" "$install_dir" || exit 1
+  ); then
+    die "Neovim $tag could not be downloaded, validated, and installed atomically."
+  fi
   managed_tool_link "$install_dir/bin/nvim" nvim
-  rm -rf "$tmp"
 }
 
 install_upstream_apt_tools() {
@@ -790,49 +1010,72 @@ if ((${#SELECTED_CONFIGS[@]})) && [[ -z $SOURCE_DIR ]]; then
   fi
 fi
 
-cleanup_removed_links() {
-  local target
-  local -a removed_targets=(
-    "$HOME/.config/tmux"
-    "$HOME/.local/bin/tmux-scratch"
-    "$HOME/.local/share/zsh/functions/ZNVIM_README.md"
-    "$HOME/.local/share/zsh/functions/fuzzy-nvim.zsh"
-    "$HOME/.local/share/zsh/functions/index-config.zsh"
-    "$HOME/.local/share/zsh/functions/index-configs.zsh"
+cleanup_obsolete_links() {
+  local entry target expected_suffix link_target
+  local -a obsolete_links=(
+    "$HOME/.config/tmux|tmux/.config/tmux"
+    "$HOME/.local/bin/tmux-scratch|scripts/.local/bin/tmux-scratch"
+    "$HOME/.local/share/zsh/functions/ZNVIM_README.md|scripts/.local/share/zsh/functions/ZNVIM_README.md"
+    "$HOME/.local/share/zsh/functions/fuzzy-nvim.zsh|scripts/.local/share/zsh/functions/fuzzy-nvim.zsh"
+    "$HOME/.local/share/zsh/functions/index-config.zsh|scripts/.local/share/zsh/functions/index-config.zsh"
+    "$HOME/.local/share/zsh/functions/index-configs.zsh|scripts/.local/share/zsh/functions/index-configs.zsh"
   )
-  for target in "${removed_targets[@]}"; do
-    if [[ -L $target && ! -e $target ]]; then
-      if [[ $DRY_RUN == 1 ]]; then
-        say "[dry-run] Would remove obsolete broken link: $target"
-      else
-        rm -- "$target"
-        NOTICES+=("Removed obsolete broken link: $target")
-      fi
+  for entry in "${obsolete_links[@]}"; do
+    IFS='|' read -r target expected_suffix <<< "$entry"
+    [[ -L $target && ! -e $target ]] || continue
+    link_target=$(readlink "$target" 2>/dev/null || true)
+    if [[ $link_target != *"$expected_suffix" ]]; then
+      NOTICES+=("Kept unrelated dangling link: $target")
+      continue
+    fi
+    if [[ $DRY_RUN == 1 ]]; then
+      say "[dry-run] Would remove obsolete dotfiles-owned link: $target"
+    else
+      rm -- "$target"
+      NOTICES+=("Removed obsolete dotfiles-owned link: $target")
     fi
   done
 }
-cleanup_removed_links
 
 BACKUP_ROOT=''
+ensure_backup_root() {
+  local parent
+  [[ -n $BACKUP_ROOT ]] && return 0
+  parent="$HOME/.local/state/dotfiles-backups"
+  mkdir -p "$parent"
+  BACKUP_ROOT=$(mktemp -d "$parent/$(date +%Y%m%d-%H%M%S)-XXXXXX")
+}
+
 backup_package_conflicts() {
-  local config=$1 source_file relative target backup_target resolved_target resolved_source count=0
-  [[ -n $BACKUP_ROOT ]] || BACKUP_ROOT="$HOME/.local/state/dotfiles-backups/$(date +%Y%m%d-%H%M%S)"
-  while IFS= read -r -d '' source_file; do
-    relative=${source_file#"$SOURCE_DIR/$config/"}
+  local config=$1 stow_output=$2 line relative source_file target backup_target count=0
+  local -a moved_relatives=()
+  while IFS= read -r line; do
+    [[ $line == *'existing target '* ]] || continue
+    relative=${line#*existing target }
+    if [[ $relative == is*': '* ]]; then
+      relative=${relative##*: }
+    else
+      relative=${relative%% since *}
+    fi
+    relative=${relative%$'\r'}
+    [[ -n $relative && $relative != /* && $relative != .. && $relative != ../* && $relative != */../* && $relative != */.. ]] || continue
+    contains_id "$relative" "${moved_relatives[@]}" && continue
+    source_file="$SOURCE_DIR/$config/$relative"
+    [[ -f $source_file || -L $source_file ]] || continue
     target="$HOME/$relative"
     [[ -e $target || -L $target ]] || continue
-    if [[ -L $target ]]; then
-      resolved_target=$(readlink -f "$target" 2>/dev/null || true)
-      resolved_source=$(readlink -f "$source_file" 2>/dev/null || true)
-      [[ -n $resolved_target && $resolved_target == "$resolved_source" ]] && continue
-    elif [[ -d $target ]]; then
+    if [[ -e $target && $target -ef $source_file ]]; then
       continue
     fi
+    [[ ! -d $target || -L $target ]] || continue
+    ensure_backup_root
     backup_target="$BACKUP_ROOT/$config/$relative"
     mkdir -p "$(dirname "$backup_target")"
+    [[ ! -e $backup_target && ! -L $backup_target ]] || die "Refusing to overwrite an existing conflict backup: $backup_target"
     mv -- "$target" "$backup_target"
+    moved_relatives+=("$relative")
     count=$((count+1))
-  done < <(find "$SOURCE_DIR/$config" \( -type f -o -type l \) -print0)
+  done <<< "$stow_output"
   BACKED_UP_COUNT=$count
 }
 
@@ -874,7 +1117,7 @@ stow_configs() {
     say "Checking $config for conflicts..."
     if ! stow_output=$(stow --simulate "${options[@]}" "$config" 2>&1); then
       if should_backup_stow_conflicts "$config"; then
-        backup_package_conflicts "$config"
+        backup_package_conflicts "$config" "$stow_output"
         if ((BACKED_UP_COUNT > 0)); then
           NOTICES+=("Backed up $BACKED_UP_COUNT conflicting target(s) for $config under $BACKUP_ROOT/$config")
           say "Backed up $BACKED_UP_COUNT conflict(s); checking $config again..."
@@ -922,10 +1165,50 @@ build_bat_cache() {
 }
 build_bat_cache
 
+normalize_github_repo() {
+  local value=${1%.git}
+  value=${value#https://github.com/}
+  value=${value#http://github.com/}
+  value=${value#git@github.com:}
+  value=${value#ssh://git@github.com/}
+  printf '%s\n' "${value%/}"
+}
+
+valid_expected_checkout() {
+  local url=$1 destination=$2 origin expected_repo origin_repo tracked_file
+  command_exists git || return 1
+  git -C "$destination" rev-parse --verify HEAD >/dev/null 2>&1 || return 1
+  origin=$(git -C "$destination" remote get-url origin 2>/dev/null || true)
+  [[ -n $origin ]] || return 1
+  expected_repo=$(normalize_github_repo "$url")
+  origin_repo=$(normalize_github_repo "$origin")
+  [[ $origin_repo == "$expected_repo" ]] || return 1
+  tracked_file=$(git -C "$destination" ls-tree -r --name-only HEAD 2>/dev/null | awk 'NR == 1 {print; exit}' || true)
+  [[ -n $tracked_file && ( -e $destination/$tracked_file || -L $destination/$tracked_file ) ]] || return 1
+  if [[ $expected_repo == ohmyzsh/ohmyzsh && ! -f $destination/oh-my-zsh.sh ]]; then
+    return 1
+  fi
+}
+
 clone_if_missing() {
-  local url=$1 destination=$2
+  local url=$1 destination=$2 existing=''
   if [[ -d $destination ]]; then
-    say "Already present: $destination"
+    if valid_expected_checkout "$url" "$destination"; then
+      say "Already present: $destination"
+      return 0
+    fi
+    existing=$(find "$destination" -mindepth 1 -print -quit 2>/dev/null || true)
+    if [[ -n $existing ]]; then
+      warn "Keeping an existing directory that is not a valid Git checkout; $url was not cloned: $destination"
+      return 0
+    fi
+    if [[ $DRY_RUN == 1 ]]; then
+      say "[dry-run] Would replace the empty directory and clone $url to $destination"
+      return 0
+    fi
+    rmdir "$destination"
+  elif [[ -e $destination || -L $destination ]]; then
+    warn "Keeping an existing non-directory; $url was not cloned: $destination"
     return 0
   fi
   if [[ $DRY_RUN == 1 ]]; then say "[dry-run] Would clone $url to $destination"; else git clone --quiet --depth=1 "$url" "$destination"; fi
@@ -959,6 +1242,7 @@ run_actions() {
             say '[dry-run] Would install missing Neovim plugins if Neovim and its config are available.'
           fi
           ;;
+        cleanup-obsolete-links) cleanup_obsolete_links ;;
       esac
       continue
     fi
@@ -998,11 +1282,14 @@ run_actions() {
         fi
         say 'Finished Neovim plugin action.'
         ;;
+      cleanup-obsolete-links)
+        cleanup_obsolete_links
+        ;;
       default-shell)
         command_exists zsh || { warn 'Skipping login shell change: zsh is unavailable.'; continue; }
         local zsh_path login_user current_shell
         zsh_path=$(command -v zsh)
-        login_user=${USER:-$(id -un)}
+        login_user=$(id -un)
         if command_exists getent; then
           current_shell=$(getent passwd "$login_user" | awk -F: '{print $7}' || true)
         else
@@ -1032,16 +1319,5 @@ say 'Completed.'
 say 'Existing checkouts are never updated automatically; run git pull yourself after reviewing changes.'
 
 # Keep the final screen actionable even when earlier output was long.
-printf '\n========== Installation summary ==========\n'
-if ((${#NOTICES[@]})); then
-  printf 'Completed with backups/notices:\n'
-  for message in "${NOTICES[@]}"; do printf '  - %s\n' "$message"; done
-fi
-if ((${#ISSUES[@]})); then
-  printf 'Warnings or skipped operations:\n' >&2
-  for message in "${ISSUES[@]}"; do printf '  - %s\n' "$message" >&2; done
-  printf 'Review the warnings above; rerunning the bootstrap is safe.\n' >&2
-  exit 2
-else
-  printf 'No warnings or skipped operations.\n'
-fi
+print_installation_summary
+if ((${#ISSUES[@]})); then exit 2; fi

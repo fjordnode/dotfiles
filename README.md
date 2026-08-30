@@ -1,6 +1,6 @@
 # Dotfiles Core
 
-Portable CLI/development configuration managed with GNU Stow. The bootstrap is interactive, rerunnable, and supports Arch/CachyOS (`pacman`), Debian/Ubuntu, Fedora, openSUSE, and Homebrew.
+Portable CLI/development configuration managed with GNU Stow. The bootstrap is interactive and rerunnable. It supports Arch/CachyOS (`pacman`), Debian/Ubuntu, Fedora, and openSUSE; macOS requires both Homebrew and Homebrew Bash 4.3 or newer.
 
 ## Quick Install
 
@@ -18,20 +18,27 @@ Running it directly is also supported; the checklist reads from the terminal eve
 curl -fsSL https://raw.githubusercontent.com/fjordnode/dotfiles/main/bootstrap.sh | bash
 ```
 
+macOS ships an older Bash. Install Homebrew Bash first and use it explicitly, especially for a piped install:
+
+```bash
+brew install bash
+curl -fsSL https://raw.githubusercontent.com/fjordnode/dotfiles/main/bootstrap.sh | "$(brew --prefix)/bin/bash"
+```
+
 The first screen selects the setup type:
 
 - **CLI** (the safe default) hides graphical desktop applications and configs.
-- **Desktop** shows the complete catalog, including Wayland and compositor tools.
+- **Desktop** shows the complete catalog supported by the detected package manager, including available Wayland and compositor tools. Configs remain selectable for applications installed separately.
 
 Then use **Space** to select items, **↑/↓** (or `j`/`k`) to move, **Enter** to accept, **Esc** to return to the previous step, and `q` to cancel. Applications are grouped by category and alphabetized within each category. The remaining checklists cover:
 
 1. system packages to install;
 2. config packages to link with Stow—the matching configs for selected applications are preselected automatically;
-3. optional setup actions such as an APT system upgrade, Oh My Zsh, or changing the login shell.
+3. optional setup actions such as an APT system upgrade, Oh My Zsh, changing the login shell, or removing obsolete links previously created by these dotfiles.
 
 The config suggestions are only defaults: you can toggle any of them before continuing. An explicit `--configs` list remains authoritative in automated runs.
 
-Before changing anything, the script prints the complete plan and asks for confirmation. It does not:
+Before changing anything, the script validates required tools and checks selected packages against current APT or pacman metadata, prints the complete plan—including an APT metadata refresh when needed—and asks for confirmation. Fatal execution errors are repeated in the final installation summary. It does not:
 
 - overwrite conflicting files or use `stow --adopt`; optional conflict backups are explicit and preserved under `~/.local/state`;
 - pull or modify an existing Git checkout;
@@ -55,7 +62,7 @@ sudo pacman -Syu
 
 APT is used for foundational and system-integrated packages. The optional **APT system upgrade** action runs `apt-get update` followed by `apt-get upgrade -y` before installing selected packages; it is disabled by default and preserves existing package configuration files. Fast-moving CLI tools—Starship, bat, eza, fd, fzf, Neovim, ripgrep, Yazi, and zoxide—come from their latest official GitHub release instead of Debian's older packages. They are installed version-by-version under `~/.local/share/dotfiles-tools/` and linked from `~/.local/bin/`.
 
-The bootstrap does not add third-party APT repositories or overwrite an unmanaged file in `~/.local/bin`. Release checksums are verified when the upstream project publishes a checksum beside its asset. Supported release architectures are x86-64 and ARM64.
+The bootstrap does not add third-party APT repositories or overwrite an unmanaged file in `~/.local/bin`. Desktop applications unavailable from the standard APT metadata are omitted from the application selector, while their configs remain available. Release checksums are verified when an upstream release provides a matching `<asset>.sha256` file. Supported release architectures are x86-64 and ARM64.
 
 ### Dry run and automation
 
@@ -72,7 +79,13 @@ The bootstrap does not add third-party APT repositories or overwrite an unmanage
 
 Use `none` for an empty list. Non-interactive mode requires all three lists, which prevents an omitted variable from unexpectedly selecting defaults. `PACKAGES`, `CONFIGS`, `ACTIONS`, `NONINTERACTIVE=1`, and `DRY_RUN=1` are equivalent environment controls.
 
-The script requires Bash 4.3 or newer. Current Arch Linux satisfies this requirement.
+Run the regression smoke tests after changing the bootstrap. Destructive-path checks use temporary home directories and fake package-manager commands:
+
+```bash
+tests/bootstrap-smoke.sh
+```
+
+The script requires Bash 4.3 or newer. Current Linux distributions satisfy this requirement. On macOS, install Homebrew Bash and invoke the script with `"$(brew --prefix)/bin/bash"`; stock macOS Bash 3.2 is unsupported.
 
 ### Termux (Android)
 
@@ -315,7 +328,7 @@ nvim --headless "+Lazy! sync" +qa
 ## Supported Systems
 
 - Linux (Debian/Ubuntu, Fedora/RHEL, Arch, openSUSE)
-- macOS (with Homebrew)
+- macOS (with Homebrew and Homebrew Bash 4.3+)
 - Termux (Android)
 - Docker containers
 - Unraid (via Docker container)
