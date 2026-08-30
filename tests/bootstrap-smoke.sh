@@ -19,7 +19,11 @@ cat >"$TMP/bin/pacman" <<'EOF'
 #!/bin/sh
 case "$1" in
   -Si|-Q) exit 0 ;;
-  *) printf 'simulated package-manager failure\n' >&2; exit 42 ;;
+  *)
+    if [ -n "${PACMAN_ARGS_LOG:-}" ]; then printf '%s\n' "$*" >"$PACMAN_ARGS_LOG"; fi
+    printf 'simulated package-manager failure\n' >&2
+    exit 42
+    ;;
 esac
 EOF
 cat >"$TMP/bin/sudo" <<'EOF'
@@ -78,8 +82,43 @@ else
   printf '[test] SKIP: interactive select-all (util-linux script on APT host required)\n'
 fi
 
-set +e
 output=$(HOME="$TMP/home" PATH="$TEST_PATH" "$BOOTSTRAP" \
+  --dry-run --non-interactive --setup cli \
+  --packages yazi --configs none --actions none 2>&1)
+[[ $output == *'Would install with pacman: yazi ttf-nerd-fonts-symbols'* ]] || fail 'Arch Yazi did not select a deterministic Nerd Font provider'
+pass 'Arch Yazi preselects the symbols-only Nerd Font provider'
+
+if command -v script >/dev/null 2>&1 && script --version 2>&1 | grep -q 'util-linux'; then
+  mkdir -p "$TMP/tty-bin" "$TMP/tty-home"
+  cat >"$TMP/tty-bin/pacman" <<'EOF'
+#!/bin/sh
+case "$1" in
+  -Si|-Q) exit 0 ;;
+esac
+if [ -t 0 ] && [ -t 1 ]; then printf 'tty=yes\n' >"$PACMAN_TTY_LOG"; else printf 'tty=no\n' >"$PACMAN_TTY_LOG"; fi
+printf ':: Proceed with installation? [Y/n] '
+IFS= read -r answer
+printf '\n'
+[ "$answer" = y ] || [ "$answer" = Y ]
+EOF
+  chmod +x "$TMP/tty-bin/pacman"
+  set +e
+  output=$(printf 'y\ny\n' | HOME="$TMP/tty-home" PATH="$TMP/tty-bin:$TEST_PATH" \
+    PACMAN_TTY_LOG="$TMP/pacman-tty" TERM=xterm \
+    script -qefc "$BOOTSTRAP --setup cli --packages curl --configs none --actions none" /dev/null 2>&1)
+  status=$?
+  set -e
+  output=${output//$'\r'/}
+  [[ $status == 0 ]] || fail "interactive Pacman TTY test returned $status"
+  [[ $output == *':: Proceed with installation? [Y/n]'* ]] || fail 'Pacman confirmation was not visible'
+  [[ $(<"$TMP/pacman-tty") == tty=yes ]] || fail 'interactive Pacman was not attached to the terminal'
+  pass 'interactive Pacman confirmation is visible on the terminal'
+else
+  printf '[test] SKIP: Pacman TTY attachment (util-linux script required)\n'
+fi
+
+set +e
+output=$(HOME="$TMP/home" PATH="$TEST_PATH" PACMAN_ARGS_LOG="$TMP/pacman-args" "$BOOTSTRAP" \
   --non-interactive --setup cli \
   --packages curl --configs none --actions none 2>&1)
 status=$?
@@ -87,7 +126,8 @@ set -e
 [[ $status == 42 ]] || fail "fatal package failure returned $status instead of 42"
 [[ $output == *'Installation summary'* ]] || fail 'fatal package failure omitted final summary'
 [[ $output == *'Unexpected command failure'* ]] || fail 'fatal package failure was not recorded'
-pass 'fatal errors reach the final summary'
+grep -q -- '--noconfirm' "$TMP/pacman-args" || fail 'non-interactive Pacman omitted --noconfirm'
+pass 'fatal errors reach the final summary and non-interactive Pacman does not prompt'
 
 mkdir -p "$TMP/home/.config" "$TMP/home/.local/bin"
 ln -s '/missing/unrelated-tmux-config' "$TMP/home/.config/tmux"

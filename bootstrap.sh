@@ -580,7 +580,7 @@ package_name() {
     return 0
   fi
   case "$PM:$id" in
-    pacman:github-cli) echo github-cli ;; pacman:build-tools) echo base-devel ;; pacman:procps) echo procps-ng ;; pacman:bluez) printf '%s\n' bluez bluez-utils ;;
+    pacman:github-cli) echo github-cli ;; pacman:build-tools) echo base-devel ;; pacman:procps) echo procps-ng ;; pacman:bluez) printf '%s\n' bluez bluez-utils ;; pacman:yazi) printf '%s\n' yazi ttf-nerd-fonts-symbols ;;
     apt:starship|apt:bat|apt:eza|apt:fd|apt:fzf|apt:neovim|apt:ripgrep|apt:yazi|apt:zoxide) return 0 ;;
     apt:github-cli) echo gh ;; apt:build-tools) echo build-essential ;; apt:openssh) echo openssh-client ;; apt:procps) echo procps ;; apt:networkmanager) echo network-manager ;;
     dnf:github-cli) echo gh ;; dnf:build-tools) echo gcc make ;; dnf:fd) echo fd-find ;; dnf:neovim) echo neovim ;; dnf:openssh) echo openssh-clients ;; dnf:procps) echo procps-ng ;;
@@ -595,7 +595,11 @@ package_name() {
 
 SYSTEM_PACKAGES=()
 for id in "${SELECTED_PACKAGES[@]}"; do
-  while IFS= read -r name; do [[ -n $name ]] && SYSTEM_PACKAGES+=("$name"); done < <(package_name "$id")
+  while IFS= read -r name; do
+    [[ -n $name ]] || continue
+    if contains_id "$name" "${SYSTEM_PACKAGES[@]}"; then continue; fi
+    SYSTEM_PACKAGES+=("$name")
+  done < <(package_name "$id")
 done
 
 validate_current_apt_metadata() {
@@ -752,7 +756,15 @@ run_package_install() {
   fi
   say "Installing selected packages with $PM (already-installed packages are kept)."
   case "$PM" in
-    pacman) "${elevate[@]}" pacman -S --needed "${SYSTEM_PACKAGES[@]}" ;;
+    pacman)
+      if [[ $NONINTERACTIVE == 1 ]]; then
+        "${elevate[@]}" pacman -S --needed --noconfirm "${SYSTEM_PACKAGES[@]}"
+      else
+        [[ -r /dev/tty && -w /dev/tty ]] || die 'A terminal is required for Pacman confirmation; use --non-interactive for automation.'
+        say 'Pacman package/provider choices and its final confirmation follow on the terminal.'
+        "${elevate[@]}" pacman -S --needed "${SYSTEM_PACKAGES[@]}" </dev/tty >/dev/tty 2>&1
+      fi
+      ;;
     apt)
       if [[ $APT_UPDATED != 1 ]]; then "${elevate[@]}" apt-get update; fi
       validate_current_apt_metadata refreshed

@@ -58,6 +58,8 @@ sudo pacman -Syu
 ./bootstrap.sh
 ```
 
+Interactive Pacman transactions are attached directly to `/dev/tty`, so provider choices and the final `[Y/n]` confirmation remain visible even when the bootstrap was piped or launched through a terminal harness. Selecting Yazi explicitly installs the small `ttf-nerd-fonts-symbols` provider instead of asking users to choose among every Nerd Font package.
+
 ### Debian/Ubuntu package sources
 
 APT is used for foundational and system-integrated packages. The optional **APT system upgrade** action runs `apt-get update` followed by `apt-get upgrade -y` before installing selected packages; it is disabled by default and preserves existing package configuration files. Fast-moving CLI tools—Starship, bat, eza, fd, fzf, Neovim, ripgrep, Yazi, and zoxide—come from their latest official GitHub release instead of Debian's older packages. They are installed version-by-version under `~/.local/share/dotfiles-tools/` and linked from `~/.local/bin/`.
@@ -77,7 +79,7 @@ The bootstrap does not add third-party APT repositories or overwrite an unmanage
   --actions 'oh-my-zsh zsh-plugins nvim-plugins'
 ```
 
-Use `none` for an empty list. Non-interactive mode requires all three lists, which prevents an omitted variable from unexpectedly selecting defaults. `PACKAGES`, `CONFIGS`, `ACTIONS`, `NONINTERACTIVE=1`, and `DRY_RUN=1` are equivalent environment controls.
+Use `none` for an empty list. Non-interactive mode requires all three lists, which prevents an omitted variable from unexpectedly selecting defaults; Pacman also receives `--noconfirm` in that mode. `PACKAGES`, `CONFIGS`, `ACTIONS`, `NONINTERACTIVE=1`, and `DRY_RUN=1` are equivalent environment controls.
 
 Run the regression smoke tests after changing the bootstrap. Destructive-path checks use temporary home directories and fake package-manager commands:
 
