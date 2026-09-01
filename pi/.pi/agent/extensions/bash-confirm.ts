@@ -5,6 +5,12 @@ type BashInput = { command?: unknown };
 const MAX_PREVIEW = 700;
 
 const guardedCommands: Array<{ reason: string; pattern: RegExp }> = [
+  { reason: "file removal", pattern: /\brm(?:\s|$)/ },
+  { reason: "file move or rename", pattern: /\bmv(?:\s|$)/ },
+  {
+    reason: "Docker image build",
+    pattern: /\bdocker\s+(?:(?:buildx|compose)\s+)?build(?:\s|$)/,
+  },
   { reason: "remote access or transfer", pattern: /\b(?:ssh|scp|rsync)\b/ },
   { reason: "privileged command", pattern: /\bsudo\b/ },
   {
@@ -19,7 +25,7 @@ const guardedCommands: Array<{ reason: string; pattern: RegExp }> = [
     reason: "firewall or network configuration change",
     pattern: /\b(?:iptables|ip6tables|nft|ufw|firewall-cmd)\b|\bip\s+(?:link|addr|route)\s+(?:add|del|delete|replace|set)\b|\bnetworkctl\s+(?:reload|reconfigure|up|down)\b|\bnmcli\b.*\b(?:modify|delete|up|down|connect|disconnect)\b/,
   },
-  { reason: "irreversible local operation", pattern: /\brm\s+(?:-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*|-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*|--(?:recursive|force))\b|\bmkfs(?:\.[\w-]+)?\b|\bdd\b.*\bof=|\b(?:reboot|poweroff|shutdown)\b/ },
+  { reason: "irreversible local operation", pattern: /\bmkfs(?:\.[\w-]+)?\b|\bdd\b.*\bof=|\b(?:reboot|poweroff|shutdown)\b/ },
   { reason: "history-rewriting Git operation", pattern: /\bgit\s+push\b[^\n]*\s--force(?:-with-lease)?\b|\bgit\s+reset\s+--hard\b|\bgit\s+clean\b[^\n]*\s-[^\n]*f/ },
 ];
 

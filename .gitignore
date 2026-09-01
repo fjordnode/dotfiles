@@ -10,9 +10,6 @@
 *.orig
 *.tmp
 
-# Pi safety controls remain machine-local and are never managed by dotfiles
-pi/.pi/agent/extensions/pi-automode/
-
 # host-specific overrides
 .zshrc.local
 .gitconfig-work
