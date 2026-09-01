@@ -10,6 +10,8 @@ type ApprovalChoice = "once" | "session" | "deny";
 type GuardMatch = { reason: string; sessionCommand: string };
 
 const MAX_PREVIEW = 700;
+const ALLOW_ONCE_LABEL = "Allow once";
+const DENY_LABEL = "Deny";
 
 const DOCKER_COMPOSE_ACTIONS = new Set([
   "build",
@@ -611,12 +613,16 @@ export default function (pi: ExtensionAPI) {
                 () => tui.requestRender(),
               ),
             )
-          : (await ctx.ui.confirm(
-                `Confirm ${reason}`,
-                `The agent wants to run:\n\n${commandPreview}\n\nAllow it?`,
-              ))
-            ? "once"
-            : "deny";
+          : await (async (): Promise<ApprovalChoice> => {
+              const allowSessionLabel = `Allow session — future “${sessionCommand}” commands`;
+              const selected = await ctx.ui.select(
+                `Confirm ${reason}\n\n${commandPreview}`,
+                [ALLOW_ONCE_LABEL, DENY_LABEL, allowSessionLabel],
+              );
+              if (selected === ALLOW_ONCE_LABEL) return "once";
+              if (selected === allowSessionLabel) return "session";
+              return "deny";
+            })();
       if (choice === "session") sessionAllowedCommands.add(sessionCommand);
       if (choice === "deny") return { block: true, reason: `${reason} declined by user.` };
     }

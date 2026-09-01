@@ -15,7 +15,6 @@
     "npm:@narumitw/pi-btw@0.55.4",
     "git:github.com/nicobailon/visual-explainer@df35d97a00191d8aba831e757a65dd6ce0514fc0",
     "git:github.com/tunnckoCore/pi-gpt-fast-mode",
-    "npm:@juicesharp/rpiv-todo",
     "npm:pi-simplify",
     "../../projects/pi-curated-memory",
     "npm:pi-session-finder",
