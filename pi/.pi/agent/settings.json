@@ -24,24 +24,48 @@
   "subagents": {
     "agentOverrides": {
       "scout": {
-        "model": "openai-codex/gpt-5.6-luna",
-        "thinking": "low"
-      },
-      "researcher": {
         "model": "openai-codex/gpt-5.6-terra",
         "thinking": "medium"
       },
-      "worker": {
+      "researcher": {
         "model": "openai-codex/gpt-5.6-terra",
         "thinking": "high"
+      },
+      "worker": {
+        "model": "openai-codex/gpt-5.6-terra",
+        "thinking": "high",
+        "disabled": true
       },
       "reviewer": {
         "model": "openai-codex/gpt-5.6-terra",
-        "thinking": "high"
+        "thinking": "high",
+        "disabled": true
       },
       "oracle": {
         "model": "openai-codex/gpt-5.6-sol",
-        "thinking": "high"
+        "thinking": "high",
+        "disabled": true
+      },
+      "delegate": {
+        "disabled": true
+      },
+      "codex-exec": {
+        "disabled": true
+      },
+      "codex-exec-writer": {
+        "disabled": true
+      },
+      "claude-code": {
+        "disabled": true
+      },
+      "claude-code-writer": {
+        "disabled": true
+      },
+      "cursor-agent": {
+        "disabled": true
+      },
+      "cursor-agent-writer": {
+        "disabled": true
       }
     }
   },
