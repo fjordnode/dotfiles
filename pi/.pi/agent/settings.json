@@ -2,7 +2,7 @@
   "lastChangelogVersion": "0.84.4",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.6-sol",
-  "defaultThinkingLevel": "medium",
+  "defaultThinkingLevel": "high",
   "theme": "catppuccin-mocha-rail",
   "hideThinkingBlock": true,
   "packages": [
@@ -16,9 +16,12 @@
     "git:github.com/nicobailon/visual-explainer@df35d97a00191d8aba831e757a65dd6ce0514fc0",
     "git:github.com/tunnckoCore/pi-gpt-fast-mode",
     "npm:pi-simplify",
-    "../../projects/pi-curated-memory",
     "npm:pi-session-finder",
-    "npm:pi-workspace-history"
+    "npm:pi-workspace-history",
+    {
+      "source": "npm:@czottmann/pi-automode@1.15.0",
+      "extensions": []
+    }
   ],
   "subagents": {
     "agentOverrides": {

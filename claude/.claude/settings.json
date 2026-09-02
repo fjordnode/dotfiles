@@ -32,7 +32,6 @@
       "Bash(hostname:*)",
       "Bash(uname:*)",
       "Bash(id:*)",
-      "Bash(env:*)",
       "Bash(printenv:*)",
       "Bash(pwd:*)",
       "Bash(date:*)",
@@ -59,7 +58,7 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "opus",
+  "model": "fable[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -94,8 +93,46 @@
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
+  "modelSettings": {
+    "claude-fable-5-1": {
+      "effortLevel": "medium"
+    }
+  },
+  "promptSuggestionEnabled": false,
   "tui": "fullscreen",
   "autoCompactEnabled": false,
   "skipAutoPermissionPrompt": true,
-  "promptSuggestionEnabled": false
+  "autoMode": {
+    "soft_deny": [
+      "$defaults",
+      "Bash(rm -rf /opt/docker/loki/*)",
+      "Bash(rm -rf /opt/docker/prometheus/*)"
+    ],
+    "environment": [
+      "### Org-wide",
+      "**Organization**: None configured",
+      "**Cloud provider(s)**: None configured",
+      "**Repository visibility**: Not queryable via gh (remote host forgejo.denshi.dev is not a supported gh host) — assume private (self-hosted Forgejo instance, homelab context, no public-visibility signal found)",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: None configured — note: repo uses a local `.env` file for Grafana admin credentials (per CLAUDE.md)",
+      "**Default / protected branches**: Not queryable via gh (org/repo not derivable from remote); unknown — default branch also unresolved locally (origin/HEAD unset)",
+      "**CI/CD deploy targets**: None configured",
+      "**Network posture**: Homelab behind Cloudflare Tunnel and OPNsense firewall; internal services on RFC1918 ranges (192.168.x.x, 10.10.0.x) with external access proxied via Traefik/Cloudflare",
+      "**Source control**: forgejo.denshi.dev/valfar/homelab-compose.git (this repo's remote only)",
+      "**Trusted internal domains**: denshi.dev (and subdomains, e.g. grafana.denshi.dev, goaccess.denshi.dev) — per CLAUDE.md",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: Grafana (grafana.denshi.dev), Loki (:3100), Prometheus (:9090), Alloy (:12345), Traefik (:8080), Authelia, CrowdSec (:6060), cAdvisor (:8080/8081), syslog-ng (:5514/udp), Unraid host (10.10.0.11)",
+      "**Internal package registry**: None configured",
+      "**Sensitive data locations & audiences**: `.env` file (Grafana admin password); Loki-stored logs (Authelia auth events incl. usernames, Traefik access logs incl. client IPs, OPNsense firewall logs) — share only with cleared homelab admin(s)",
+      "**Data retention / declassification**: Loki logs retained 30 days (loki-config.yml); Prometheus metrics retained 30 days (docker-compose.yml --storage.tsdb.retention.time); stored at /opt/docker/loki/ and /opt/docker/prometheus/",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment",
+      "### User-specific",
+      "**Primary use of Claude Code**: homelab infrastructure operations (Docker Compose stacks, logging/monitoring stack management)",
+      "**Trusted repo**: forgejo.denshi.dev/valfar/homelab-compose.git (this repo, working directory /opt/docker/compose/grafana-stack) — visibility unconfirmed, treat as private for scoping purposes; confidential material (secrets, credentials, sensitive data) is never cleared into it regardless",
+      "**Org-specific CLIs**: None configured",
+      "routine under /opt/docker/compose/grafana-stack/ prefix: docker compose operations, log/config file edits for the Grafana+Loki+Alloy+Prometheus stack"
+    ]
+  }
 }

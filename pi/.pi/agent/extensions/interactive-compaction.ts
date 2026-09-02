@@ -13,7 +13,7 @@ type PendingCompaction = {
 };
 
 const INITIAL_THRESHOLD_PERCENT = 90;
-const DEFER_STEP_PERCENT = 5;
+const DEFER_STEP_PERCENT = 10;
 const CONTINUATION_PROMPT = "Compaction completed. Continue.";
 
 function isCodexModel(model: unknown): model is { provider: string; api: string } {
@@ -28,8 +28,8 @@ function isCodexModel(model: unknown): model is { provider: string; api: string 
 }
 
 function nextThreshold(currentThreshold: number, usagePercent: number): number {
-  const nextFivePercentBoundary = (Math.floor(usagePercent / DEFER_STEP_PERCENT) + 1) * DEFER_STEP_PERCENT;
-  return Math.max(currentThreshold + DEFER_STEP_PERCENT, nextFivePercentBoundary);
+  const nextStepBoundary = (Math.floor(usagePercent / DEFER_STEP_PERCENT) + 1) * DEFER_STEP_PERCENT;
+  return Math.max(currentThreshold + DEFER_STEP_PERCENT, nextStepBoundary);
 }
 
 class CompactionPrompt {

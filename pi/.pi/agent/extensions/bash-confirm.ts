@@ -1,17 +1,59 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type {
   ExtensionAPI,
+  ExtensionContext,
   KeybindingsManager,
   Theme,
 } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import {
+  createPiAutomode,
+  defaultClassifyAction,
+} from "../npm/node_modules/@czottmann/pi-automode/extensions/auto-mode.ts";
 
 type BashInput = { command?: unknown };
 type ApprovalChoice = "once" | "session" | "deny";
 type GuardMatch = { reason: string; sessionCommand: string };
+type ToolCallEvent = { toolName: string; input: unknown };
+type ToolCallResult = { block?: boolean; reason?: string; terminate?: boolean } | undefined;
+type ToolCallHandler = (
+  event: ToolCallEvent,
+  ctx: ExtensionContext,
+) => ToolCallResult | Promise<ToolCallResult>;
+type ApprovalRequest = {
+  category: string;
+  reason?: string;
+  actionLabel: string;
+  action: string;
+  sessionScope: string;
+  message: string;
+  danger?: boolean;
+};
+type ActionScope = { key: string; label: string };
+type AutoModeDenial = {
+  kind: string;
+  category: string;
+  reason: string;
+  danger: boolean;
+  userAlreadyDeclined?: boolean;
+  cancelled?: boolean;
+};
 
 const MAX_PREVIEW = 700;
 const ALLOW_ONCE_LABEL = "Allow once";
 const DENY_LABEL = "Deny";
+const CLASSIFIER_REASON_PREFIX = "[[pi-automode-classifier:";
+const CLASSIFIER_REASON_SEPARATOR = "]] ";
+const AUTOMODE_ENTRY_PATH = join(
+  process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent"),
+  "npm",
+  "node_modules",
+  "@czottmann",
+  "pi-automode",
+  "extensions",
+  "auto-mode.ts",
+);
 
 const DOCKER_COMPOSE_ACTIONS = new Set([
   "build",
@@ -487,7 +529,7 @@ function classifySegment(segment: string): GuardMatch[] {
   return [];
 }
 
-function guardMatches(command: string): GuardMatch[] {
+export function guardMatches(command: string): GuardMatch[] {
   const matches = splitShellCommands(command).flatMap(classifySegment);
   const seen = new Set<string>();
   return matches.filter((match) => {
@@ -498,13 +540,137 @@ function guardMatches(command: string): GuardMatch[] {
   });
 }
 
+function stableSerialize(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? String(value);
+  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableSerialize(record[key])}`)
+    .join(",")}}`;
+}
+
+function actionPreview(event: ToolCallEvent): string {
+  if (event.toolName === "bash") {
+    const command = (event.input as BashInput).command;
+    if (typeof command === "string") return preview(command);
+  }
+  try {
+    return preview(`${event.toolName} ${JSON.stringify(event.input, null, 2)}`);
+  } catch {
+    return preview(event.toolName);
+  }
+}
+
+export function actionScope(event: ToolCallEvent): ActionScope {
+  if (event.toolName === "bash") {
+    const command = (event.input as BashInput).command;
+    if (typeof command === "string") {
+      const operations = guardMatches(command)
+        .map(({ sessionCommand }) => sessionCommand)
+        .sort();
+      if (operations.length > 0) {
+        const signature = operations.join(" + ");
+        return { key: `bash\0${signature}`, label: signature };
+      }
+      const normalized = command.trim().replace(/\s+/g, " ");
+      return { key: `bash\0${normalized}`, label: preview(normalized) };
+    }
+  }
+
+  const input = event.input as Record<string, unknown> | undefined;
+  const path = input && typeof input.path === "string" ? input.path : undefined;
+  return {
+    key: `${event.toolName}\0${stableSerialize(event.input)}`,
+    label: path ? `${event.toolName} ${path}` : event.toolName,
+  };
+}
+
+function stripAutoModePrefix(reason: string): string {
+  return reason.startsWith("[pi-automode] ")
+    ? reason.slice("[pi-automode] ".length)
+    : reason;
+}
+
+export function classifyAutoModeDenial(result: ToolCallResult): AutoModeDenial | undefined {
+  if (!result?.block) return undefined;
+  const rawReason = stripAutoModePrefix(result.reason ?? "Auto mode blocked this action.");
+
+  if (rawReason === "Cancelled") {
+    return {
+      kind: "cancelled",
+      category: "AUTO-MODE CANCELLED",
+      reason: rawReason,
+      danger: false,
+      cancelled: true,
+    };
+  }
+
+  if (rawReason.startsWith("Declined permissions.ask:")) {
+    return {
+      kind: "permissions.ask",
+      category: "AUTO-MODE PERMISSION DECLINED",
+      reason: rawReason,
+      danger: false,
+      userAlreadyDeclined: true,
+    };
+  }
+
+  if (rawReason.startsWith(CLASSIFIER_REASON_PREFIX)) {
+    const separatorIndex = rawReason.indexOf(CLASSIFIER_REASON_SEPARATOR);
+    const tier = separatorIndex < 0
+      ? "none"
+      : rawReason.slice(CLASSIFIER_REASON_PREFIX.length, separatorIndex);
+    const reason = separatorIndex < 0
+      ? rawReason
+      : rawReason.slice(separatorIndex + CLASSIFIER_REASON_SEPARATOR.length);
+    const tierLabel = tier === "hard_deny"
+      ? "HARD DENY"
+      : tier === "soft_deny"
+        ? "SOFT DENY"
+        : "DENY";
+    return {
+      kind: `classifier:${tier}`,
+      category: `AUTO-MODE CLASSIFIER ${tierLabel}`,
+      reason,
+      danger: tier === "hard_deny",
+    };
+  }
+
+  if (rawReason.startsWith("Blocked by permissions.deny:")) {
+    return {
+      kind: "permissions.deny",
+      category: "AUTO-MODE PERMISSIONS.DENY",
+      reason: rawReason,
+      danger: true,
+    };
+  }
+
+  if (
+    rawReason.startsWith("Path denied by policy:") ||
+    rawReason.startsWith("Search scope can contain a path denied by policy:")
+  ) {
+    return {
+      kind: "deterministic-path-deny",
+      category: "AUTO-MODE PATH DENY",
+      reason: rawReason,
+      danger: true,
+    };
+  }
+
+  return {
+    kind: "deterministic-hard-deny",
+    category: "AUTO-MODE DETERMINISTIC HARD DENY",
+    reason: rawReason,
+    danger: true,
+  };
+}
+
 class ApprovalPrompt {
-  private selected: 0 | 1 | 2 = 1;
+  private selected: 0 | 1 | 2 = 0;
 
   constructor(
-    private readonly reason: string,
-    private readonly sessionCommand: string,
-    private readonly command: string,
+    private readonly request: ApprovalRequest,
     private readonly theme: Theme,
     private readonly keybindings: KeybindingsManager,
     private readonly done: (choice: ApprovalChoice) => void,
@@ -520,25 +686,33 @@ class ApprovalPrompt {
       const color = index === 0 ? "warning" : index === 1 ? "success" : "error";
       return this.theme.fg(color, this.selected === index ? this.theme.bold(content) : content);
     };
-
-    const commandLines = wrapTextWithAnsi(safeForTerminal(this.command), innerWidth).map((commandLine) =>
-      line(`  ${this.theme.fg("text", commandLine)}`),
-    );
+    const wrapped = (text: string, color: "text" | "warning" | "error" = "text"): string[] =>
+      wrapTextWithAnsi(safeForTerminal(text), innerWidth).map((wrappedLine) =>
+        line(`  ${this.theme.fg(color, wrappedLine)}`),
+      );
+    const categoryColor = this.request.danger ? "error" : "warning";
 
     return [
       this.theme.fg("warning", "━".repeat(Math.max(1, width))),
       "",
       line(
-        `  ${this.theme.fg("warning", this.theme.bold("⚠  APPROVAL REQUIRED"))}${this.theme.fg("muted", `  ·  ${this.reason.toUpperCase()}`)}`,
+        `  ${this.theme.fg("warning", this.theme.bold("⚠  APPROVAL REQUIRED"))}${this.theme.fg(categoryColor, this.theme.bold(`  ·  ${this.request.category}`))}`,
       ),
-      line("  The agent is paused until you approve or deny this guarded command."),
+      ...wrapped(this.request.message),
+      ...(this.request.reason
+        ? [
+            "",
+            line(`  ${this.theme.fg("muted", this.theme.bold("AUTO-MODE REASON"))}`),
+            ...wrapped(this.request.reason, this.request.danger ? "error" : "warning"),
+          ]
+        : []),
       "",
-      line(`  ${this.theme.fg("muted", this.theme.bold("COMMAND"))}`),
-      ...commandLines,
+      line(`  ${this.theme.fg("muted", this.theme.bold(this.request.actionLabel))}`),
+      ...wrapped(this.request.action),
       "",
-      option(0, "1.  ALLOW ONCE      Run this command"),
-      option(1, "2.  DENY            Block this command"),
-      option(2, `3.  ALLOW SESSION   Run; allow future “${this.sessionCommand}” commands this session`),
+      option(0, "1.  ALLOW ONCE      Run this action"),
+      option(1, "2.  DENY            Block and stop this agent turn"),
+      option(2, `3.  ALLOW SESSION   Run; allow future “${this.request.sessionScope}” actions this session`),
       "",
       line(this.theme.fg("dim", "  Press 1, 2, or 3  ·  ↑↓ move  ·  Enter select  ·  Esc deny")),
       this.theme.fg("warning", "━".repeat(Math.max(1, width))),
@@ -576,19 +750,86 @@ class ApprovalPrompt {
   invalidate(): void {}
 }
 
+async function requestApproval(
+  ctx: ExtensionContext,
+  request: ApprovalRequest,
+): Promise<ApprovalChoice> {
+  if (ctx.mode === "tui") {
+    return ctx.ui.custom<ApprovalChoice>((tui, theme, keybindings, done) =>
+      new ApprovalPrompt(
+        request,
+        theme,
+        keybindings,
+        done,
+        () => tui.requestRender(),
+      ),
+    );
+  }
+
+  const allowSessionLabel = `Allow session — future “${request.sessionScope}” actions`;
+  const reason = request.reason ? `\n\nAuto-mode reason:\n${request.reason}` : "";
+  const selected = await ctx.ui.select(
+    `${request.category}\n\n${request.message}${reason}\n\n${request.action}`,
+    [ALLOW_ONCE_LABEL, DENY_LABEL, allowSessionLabel],
+  );
+  if (selected === ALLOW_ONCE_LABEL) return "once";
+  if (selected === allowSessionLabel) return "session";
+  return "deny";
+}
+
+function quietAutoModeContext(ctx: ExtensionContext): ExtensionContext {
+  if (!ctx.hasUI) return ctx;
+  const quietUi = new Proxy(ctx.ui, {
+    get(target, property, receiver) {
+      if (property === "notify") {
+        return (message: string, ...args: unknown[]) => {
+          if (message.startsWith("Auto mode blocked ")) return;
+          return (target.notify as (...notifyArgs: unknown[]) => unknown).call(target, message, ...args);
+        };
+      }
+      const value = Reflect.get(target, property, receiver) as unknown;
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  return new Proxy(ctx, {
+    get(target, property, receiver) {
+      if (property === "ui") return quietUi;
+      const value = Reflect.get(target, property, receiver) as unknown;
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
+
+function markClassifierDenials(
+  ...args: Parameters<typeof defaultClassifyAction>
+): ReturnType<typeof defaultClassifyAction> {
+  return defaultClassifyAction(...args).then((decision) =>
+    decision.decision === "block"
+      ? {
+          ...decision,
+          reason: `${CLASSIFIER_REASON_PREFIX}${decision.tier}${CLASSIFIER_REASON_SEPARATOR}${decision.reason}`,
+        }
+      : decision,
+  );
+}
+
 export default function (pi: ExtensionAPI) {
-  const sessionAllowedCommands = new Set<string>();
+  const sessionAllowedAutoModeScopes = new Set<string>();
+  const sessionAllowedGuardCommands = new Set<string>();
 
-  pi.on("tool_call", async (event, ctx) => {
-    if (event.toolName !== "bash") return;
-
+  const handleGuardedCommand = async (
+    event: ToolCallEvent,
+    ctx: ExtensionContext,
+    result: ToolCallResult,
+  ): Promise<ToolCallResult> => {
+    if (event.toolName !== "bash") return result;
     const command = (event.input as BashInput).command;
-    if (typeof command !== "string") return;
+    if (typeof command !== "string") return result;
 
     const guarded = guardMatches(command).filter(
-      ({ sessionCommand }) => !sessionAllowedCommands.has(sessionCommand),
+      ({ sessionCommand }) => !sessionAllowedGuardCommands.has(sessionCommand),
     );
-    if (guarded.length === 0) return;
+    if (guarded.length === 0) return result;
 
     if (!ctx.hasUI) {
       const operations = guarded.map(({ sessionCommand }) => sessionCommand).join(", ");
@@ -598,33 +839,114 @@ export default function (pi: ExtensionAPI) {
       };
     }
 
-    const commandPreview = preview(command);
     for (const { reason, sessionCommand } of guarded) {
-      const choice: ApprovalChoice =
-        ctx.mode === "tui"
-          ? await ctx.ui.custom<ApprovalChoice>((tui, theme, keybindings, done) =>
-              new ApprovalPrompt(
-                reason,
-                sessionCommand,
-                commandPreview,
-                theme,
-                keybindings,
-                done,
-                () => tui.requestRender(),
-              ),
-            )
-          : await (async (): Promise<ApprovalChoice> => {
-              const allowSessionLabel = `Allow session — future “${sessionCommand}” commands`;
-              const selected = await ctx.ui.select(
-                `Confirm ${reason}\n\n${commandPreview}`,
-                [ALLOW_ONCE_LABEL, DENY_LABEL, allowSessionLabel],
-              );
-              if (selected === ALLOW_ONCE_LABEL) return "once";
-              if (selected === allowSessionLabel) return "session";
-              return "deny";
-            })();
-      if (choice === "session") sessionAllowedCommands.add(sessionCommand);
-      if (choice === "deny") return { block: true, reason: `${reason} declined by user.` };
+      const choice = await requestApproval(ctx, {
+        category: reason.toUpperCase(),
+        actionLabel: "COMMAND",
+        action: preview(command),
+        sessionScope: sessionCommand,
+        message: "The agent is paused until you approve or deny this guarded command.",
+      });
+      if (choice === "session") sessionAllowedGuardCommands.add(sessionCommand);
+      if (choice === "deny") {
+        ctx.abort();
+        return {
+          block: true,
+          terminate: true,
+          reason: `${reason} declined by user. Do not retry or attempt an alternative.`,
+        };
+      }
     }
-  });
+    return result;
+  };
+
+  const handleAutoModeResult = async (
+    event: ToolCallEvent,
+    ctx: ExtensionContext,
+    result: ToolCallResult,
+  ): Promise<ToolCallResult> => {
+    const denial = classifyAutoModeDenial(result);
+    if (!denial) return handleGuardedCommand(event, ctx, result);
+    if (denial.cancelled) return result;
+    if (denial.userAlreadyDeclined) {
+      ctx.abort();
+      return {
+        ...result,
+        terminate: true,
+        reason: "Auto-mode permission declined by user. Do not retry or attempt an alternative.",
+      };
+    }
+    if (!ctx.hasUI) return result;
+
+    const scope = actionScope(event);
+    const choice = await requestApproval(ctx, {
+      category: denial.category,
+      reason: denial.reason,
+      actionLabel: event.toolName === "bash" ? "COMMAND" : "ACTION",
+      action: actionPreview(event),
+      sessionScope: scope.label,
+      message: "Auto-mode refused this action. You can explicitly override the guardrail.",
+      danger: denial.danger,
+    });
+
+    if (choice === "deny") {
+      ctx.abort();
+      return {
+        block: true,
+        terminate: true,
+        reason: `${denial.category} declined by user. Do not retry or attempt an alternative.`,
+      };
+    }
+    if (choice === "session") sessionAllowedAutoModeScopes.add(scope.key);
+    pi.appendEntry("pi-automode-user-override", {
+      timestamp: Date.now(),
+      kind: denial.kind,
+      toolName: event.toolName,
+      scope: scope.label,
+      approval: choice,
+    });
+    return undefined;
+  };
+
+  const wrappedPi = new Proxy(pi, {
+    get(target, property, receiver) {
+      if (property === "on") {
+        return (eventName: string, handler: ToolCallHandler) => {
+          if (eventName !== "tool_call") {
+            return (target.on as unknown as (name: string, callback: ToolCallHandler) => void)(
+              eventName,
+              handler,
+            );
+          }
+          return (target.on as unknown as (name: string, callback: ToolCallHandler) => void)(
+            "tool_call",
+            async (event, ctx) => {
+              if (
+                sessionAllowedAutoModeScopes.size > 0 &&
+                sessionAllowedAutoModeScopes.has(actionScope(event).key)
+              ) {
+                return undefined;
+              }
+              const result = await handler(event, quietAutoModeContext(ctx));
+              return handleAutoModeResult(event, ctx, result);
+            },
+          );
+        };
+      }
+      if (property === "getAllTools") {
+        return () => target.getAllTools().map((tool) =>
+          tool.name === "automode_inspect"
+            ? {
+                ...tool,
+                sourceInfo: { ...tool.sourceInfo, path: AUTOMODE_ENTRY_PATH },
+              }
+            : tool
+        );
+      }
+      const value = Reflect.get(target, property, receiver) as unknown;
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  }) as ExtensionAPI;
+
+  createPiAutomode({ classifyAction: markClassifierDenials })(wrappedPi);
 }
