@@ -1,22 +1,24 @@
 // Keeps local patches to npm-installed Pi packages applied.
 //
-// 1. Pi runs all npm operations through settings.json "npmCommand"; the
-//    dotfiles set it to the `pi-npm` wrapper (scripts/.local/bin), which
-//    re-runs ../patches/apply.mjs after every `pi install` / `pi update`.
-//    This extension checks that wiring is in place and warns when it is not.
-// 2. Ensures ~/.pi/agent/npm/package.json has a postinstall hook too, which
-//    covers a bare `npm install` run by hand in that directory.
-// 3. Applies the patches itself on every Pi start (and /reload), which
-//    covers a freshly stowed host and packages reinstalled without the hook.
-// 4. Reports the outcome in the UI; anything other than "already-applied"
-//    needs attention (a version bump, or a /reload to pick up new code).
+// 1. Applies the patches on every Pi start and /reload. This is the mechanism
+//    that matters: `pi install` / `pi update` overwrite the package files, and
+//    the patched code is only read when extensions load, so re-applying at
+//    load time closes the gap.
+// 2. Ensures ~/.pi/agent/npm/package.json has a postinstall hook, which covers
+//    a bare `npm install` run by hand in that directory.
+// 3. Reports version mismatches and failures in the UI. A patch that no longer
+//    matches the installed version is skipped, never force-applied.
+//
+// Deliberately does not set settings.json "npmCommand". A wrapper named there
+// must exist on PATH on every host that reads these dotfiles, and Pi dies with
+// ENOENT when it does not.
 //
 // Note: bash-confirm.ts imports pi-automode directly, so a patch applied
 // during this start only takes effect after /reload.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, join } from "node:path";
+import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { applyPatches, formatResult } from "../patches/apply.mjs";
 
@@ -31,8 +33,6 @@ type PatchResult = {
 const AGENT_DIR = join(homedir(), ".pi", "agent");
 const NPM_ROOT = join(AGENT_DIR, "npm");
 const APPLY_SCRIPT = join(AGENT_DIR, "patches", "apply.mjs");
-const SETTINGS_PATH = join(AGENT_DIR, "settings.json");
-const NPM_WRAPPER = "pi-npm";
 const POSTINSTALL =
   `[ -f "$HOME/.pi/agent/patches/apply.mjs" ] && node "$HOME/.pi/agent/patches/apply.mjs" || true`;
 
@@ -51,37 +51,15 @@ export function ensurePostinstallHook(npmRoot: string = NPM_ROOT): "unchanged" |
   return "updated";
 }
 
-export function checkNpmWrapper(
-  settingsPath: string = SETTINGS_PATH,
-  pathEnv: string = process.env.PATH ?? "",
-): string[] {
-  const problems: string[] = [];
-  let npmCommand: unknown;
-  try {
-    npmCommand = (JSON.parse(readFileSync(settingsPath, "utf8")) as Record<string, unknown>).npmCommand;
-  } catch (error) {
-    return [`cannot read ${settingsPath}: ${(error as Error).message}`];
-  }
-  if (!Array.isArray(npmCommand) || npmCommand[0] !== NPM_WRAPPER) {
-    problems.push(
-      `settings.json npmCommand is not ["${NPM_WRAPPER}"]; pi install/update will drop the patches`,
-    );
-  }
-  const onPath = pathEnv
-    .split(delimiter)
-    .filter(Boolean)
-    .some((dir) => existsSync(join(dir, NPM_WRAPPER)));
-  if (!onPath) {
-    problems.push(`${NPM_WRAPPER} is not on PATH; stow the scripts dotfiles package`);
-  }
-  return problems;
+// A patch whose package is not installed on this host is not a problem; the
+// host simply does not run that package.
+export function isProblem(result: PatchResult): boolean {
+  return result.status === "version-mismatch" || result.status === "failed";
 }
 
 export default function (pi: ExtensionAPI) {
   const problems: string[] = [];
   let applied: string[] = [];
-
-  problems.push(...checkNpmWrapper());
 
   try {
     ensurePostinstallHook();
@@ -93,11 +71,7 @@ export default function (pi: ExtensionAPI) {
     try {
       const results = applyPatches() as PatchResult[];
       applied = results.filter((r) => r.status === "applied").map(formatResult);
-      problems.push(
-        ...results
-          .filter((r) => r.status !== "applied" && r.status !== "already-applied")
-          .map(formatResult),
-      );
+      problems.push(...results.filter(isProblem).map(formatResult));
     } catch (error) {
       problems.push(`patch run failed: ${(error as Error).message}`);
     }
