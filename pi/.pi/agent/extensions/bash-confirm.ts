@@ -29,6 +29,7 @@ type ApprovalRequest = {
   sessionScope: string;
   message: string;
   danger?: boolean;
+  allowSession?: boolean;
 };
 type ActionScope = { key: string; label: string };
 type AutoModeDenial = {
@@ -666,6 +667,12 @@ export function classifyAutoModeDenial(result: ToolCallResult): AutoModeDenial |
   };
 }
 
+export function sessionApprovalCanOverride(result: ToolCallResult): boolean {
+  const denial = classifyAutoModeDenial(result);
+  return !denial ||
+    (!denial.danger && !denial.cancelled && !denial.userAlreadyDeclined);
+}
+
 class ApprovalPrompt {
   private selected: 0 | 1 | 2 = 0;
 
@@ -712,9 +719,18 @@ class ApprovalPrompt {
       "",
       option(0, "1.  ALLOW ONCE      Run this action"),
       option(1, "2.  DENY            Block and stop this agent turn"),
-      option(2, `3.  ALLOW SESSION   Run; allow future “${this.request.sessionScope}” actions this session`),
+      ...(this.request.allowSession === false
+        ? []
+        : [option(2, `3.  ALLOW SESSION   Run; allow future “${this.request.sessionScope}” actions this session`)]),
       "",
-      line(this.theme.fg("dim", "  Press 1, 2, or 3  ·  ↑↓ move  ·  Enter select  ·  Esc deny")),
+      line(
+        this.theme.fg(
+          "dim",
+          this.request.allowSession === false
+            ? "  Press 1 or 2  ·  ↑↓ move  ·  Enter select  ·  Esc deny"
+            : "  Press 1, 2, or 3  ·  ↑↓ move  ·  Enter select  ·  Esc deny",
+        ),
+      ),
       this.theme.fg("warning", "━".repeat(Math.max(1, width))),
     ];
   }
@@ -728,17 +744,22 @@ class ApprovalPrompt {
       this.done("deny");
       return;
     }
-    if (data === "3") {
+    if (data === "3" && this.request.allowSession !== false) {
       this.done("session");
       return;
     }
+    const maximum = this.request.allowSession === false ? 1 : 2;
     if (this.keybindings.matches(data, "tui.select.up")) {
-      this.selected = this.selected === 0 ? 2 : ((this.selected - 1) as 0 | 1);
+      this.selected = this.selected === 0
+        ? maximum
+        : ((this.selected - 1) as 0 | 1);
       this.requestRender();
       return;
     }
     if (this.keybindings.matches(data, "tui.select.down")) {
-      this.selected = this.selected === 2 ? 0 : ((this.selected + 1) as 1 | 2);
+      this.selected = this.selected === maximum
+        ? 0
+        : ((this.selected + 1) as 1 | 2);
       this.requestRender();
       return;
     }
@@ -770,10 +791,14 @@ async function requestApproval(
   const reason = request.reason ? `\n\nAuto-mode reason:\n${request.reason}` : "";
   const selected = await ctx.ui.select(
     `${request.category}\n\n${request.message}${reason}\n\n${request.action}`,
-    [ALLOW_ONCE_LABEL, DENY_LABEL, allowSessionLabel],
+    request.allowSession === false
+      ? [ALLOW_ONCE_LABEL, DENY_LABEL]
+      : [ALLOW_ONCE_LABEL, DENY_LABEL, allowSessionLabel],
   );
   if (selected === ALLOW_ONCE_LABEL) return "once";
-  if (selected === allowSessionLabel) return "session";
+  if (request.allowSession !== false && selected === allowSessionLabel) {
+    return "session";
+  }
   return "deny";
 }
 
@@ -887,6 +912,7 @@ export default function (pi: ExtensionAPI) {
       sessionScope: scope.label,
       message: "Auto-mode refused this action. You can explicitly override the guardrail.",
       danger: denial.danger,
+      allowSession: !denial.danger,
     });
 
     if (choice === "deny") {
@@ -897,7 +923,9 @@ export default function (pi: ExtensionAPI) {
         reason: `${denial.category} declined by user. Do not retry or attempt an alternative.`,
       };
     }
-    if (choice === "session") sessionAllowedAutoModeScopes.add(scope.key);
+    if (choice === "session" && !denial.danger) {
+      sessionAllowedAutoModeScopes.add(scope.key);
+    }
     pi.appendEntry("pi-automode-user-override", {
       timestamp: Date.now(),
       kind: denial.kind,
@@ -921,13 +949,23 @@ export default function (pi: ExtensionAPI) {
           return (target.on as unknown as (name: string, callback: ToolCallHandler) => void)(
             "tool_call",
             async (event, ctx) => {
+              const result = await handler(event, quietAutoModeContext(ctx));
+              const scope = actionScope(event);
               if (
-                sessionAllowedAutoModeScopes.size > 0 &&
-                sessionAllowedAutoModeScopes.has(actionScope(event).key)
+                sessionAllowedAutoModeScopes.has(scope.key) &&
+                sessionApprovalCanOverride(result)
               ) {
+                if (result?.block) {
+                  pi.appendEntry("pi-automode-user-override", {
+                    timestamp: Date.now(),
+                    kind: classifyAutoModeDenial(result)?.kind ?? "allow",
+                    toolName: event.toolName,
+                    scope: scope.label,
+                    approval: "session-reuse",
+                  });
+                }
                 return undefined;
               }
-              const result = await handler(event, quietAutoModeContext(ctx));
               return handleAutoModeResult(event, ctx, result);
             },
           );
