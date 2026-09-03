@@ -77,5 +77,8 @@
   "tuiMode": "regular",
   "compaction": {
     "enabled": false
-  }
+  },
+  "npmCommand": [
+    "pi-npm"
+  ]
 }

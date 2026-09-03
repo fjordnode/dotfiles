@@ -1,0 +1,31 @@
+--- a/extensions/auto-mode/paths.ts
++++ b/extensions/auto-mode/paths.ts
+@@ -284,13 +284,25 @@
+   return isAbsolute(value) ? resolve(value) : resolve(cwd, value);
+ }
+ 
++function resolvesToSamePolicyPath(path: string, protectedPath: string): boolean {
++  const resolvedPath = resolvePathForPolicy(path) ?? resolve(path);
++  const resolvedProtectedPath = resolvePathForPolicy(protectedPath) ??
++    resolve(protectedPath);
++  return normalizeProtectedPathForMatch(resolvedPath) ===
++    normalizeProtectedPathForMatch(resolvedProtectedPath);
++}
++
+ export function isProfileOrAuthorizedKeysPath(
+   path: string,
+ ): string | undefined {
+-  if (PROFILE_FILES.has(path)) {
+-    return "shell profile modification is hard-denied";
++  for (const profilePath of PROFILE_FILES) {
++    if (resolvesToSamePolicyPath(path, profilePath)) {
++      return "shell profile modification is hard-denied";
++    }
+   }
+-  if (path === resolve(HOME, ".ssh/authorized_keys")) {
++  if (
++    resolvesToSamePolicyPath(path, resolve(HOME, ".ssh/authorized_keys"))
++  ) {
+     return "SSH authorized_keys modification is hard-denied";
+   }
+   return undefined;
