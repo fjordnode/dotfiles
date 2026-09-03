@@ -17,6 +17,7 @@
     "git:github.com/tunnckoCore/pi-gpt-fast-mode",
     "npm:pi-simplify",
     "npm:pi-session-finder",
+    "npm:pi-hermes-memory",
     "npm:pi-workspace-history",
     {
       "source": "npm:@czottmann/pi-automode@1.15.0",

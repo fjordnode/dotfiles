@@ -1,0 +1,13 @@
+{
+  "memoryMode": "policy-only",
+  "memoryPolicyStyle": "custom",
+  "memoryPolicyCustomText": "Memory tools here are for recall only. When the user asks about earlier sessions, past decisions, or how something was solved before, call session_search (past conversations) or memory_search (stored notes) and answer from the results, citing the session and date. Never call the memory save tool: preferences and corrections are recorded in ~/.pi/agent/memory.md as described in AGENTS.md, and homelab facts belong in the project's documentation.",
+  "standingInstructionsEnabled": false,
+  "failureInjectionEnabled": false,
+  "reviewEnabled": false,
+  "correctionDetection": false,
+  "flushOnCompact": false,
+  "flushOnShutdown": false,
+  "memoryOverflowStrategy": "reject",
+  "sessionSearch": { "variant": "legacy" }
+}

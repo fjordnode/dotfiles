@@ -10,5 +10,6 @@
 
 # Memory
 
-- Read `~/.pi/agent/memory.md` at the start of a session. Append to it only when the user says "remember this"; keep entries one line, under the matching heading. It holds preferences, corrections, and small personal facts. Repository documentation wins over it for anything about hosts, networks, or services.
-- Recall earlier sessions with `pi-session-finder` rather than from memory.
+- Read `~/.pi/agent/memory.md` at the start of a session. It holds how the user likes to work and what has tripped agents up: preferences, corrections, tool quirks, and small personal facts. Facts about hosts, networks, services, or procedures belong in the project's own documentation, never here; the project wins over this file when they disagree.
+- Append to it when the user says "remember this", and before the final message of a substantial task when the user stated a preference, corrected you, or a tool quirk cost real time. One line per entry under the matching heading; say in the reply what you added. Skip anything temporary, speculative, or secret.
+- When asked how something was solved or decided earlier, call `session_search` (past conversations) or `memory_search` (stored notes) and answer from the results with session and date. Offer `/find <keywords>` when the user wants to resume that session.
