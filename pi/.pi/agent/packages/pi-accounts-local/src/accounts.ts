@@ -521,6 +521,8 @@ async function loginAccount(
 		if (!isCurrent()) return;
 		credentialSaved = true;
 		if (!persistSelection(session, adapter.id, parsed.name, isCurrent)) return;
+		await rememberSelection(ctx, store, adapter.id, parsed.name, isCurrent);
+		if (!isCurrent()) return;
 		const result = await syncProvider(adapter.id, ctx, session, signal);
 		if (!isCurrent()) return;
 		ctx.ui.notify(
@@ -559,6 +561,8 @@ async function switchAccount(
 	if (isDefaultPiLoginArg(name)) {
 		try {
 			if (!persistSelection(session, adapter.id, null, isCurrent)) return;
+			await rememberSelection(ctx, store, adapter.id, null, isCurrent);
+			if (!isCurrent()) return;
 		} catch (error) {
 			if (!isCurrent()) return;
 			ctx.ui.notify(
@@ -589,6 +593,8 @@ async function switchAccount(
 	}
 	try {
 		if (!persistSelection(session, adapter.id, parsed.name, isCurrent)) return;
+		await rememberSelection(ctx, store, adapter.id, parsed.name, isCurrent);
+		if (!isCurrent()) return;
 	} catch (error) {
 		if (!isCurrent()) return;
 		ctx.ui.notify(
@@ -603,6 +609,30 @@ async function switchAccount(
 		formatActivationMessage("Activated", adapter, parsed.name, result),
 		result.status === "active" ? "info" : "error",
 	);
+}
+
+// Only explicit login/switch actions change the default for future sessions.
+// Startup, resume, refresh and removal must not overwrite another session's choice.
+async function rememberSelection(
+	ctx: ExtensionCommandContext,
+	store: AccountStore,
+	providerId: AccountProviderId,
+	accountName: string | null,
+	isCurrent: () => boolean,
+): Promise<void> {
+	try {
+		await store.updateProvider(providerId, (state) => {
+			if (!isCurrent()) return state;
+			if (accountName !== null && !getOwnCredential(state.accounts, accountName)) return state;
+			return { ...state, active: accountName ?? undefined };
+		});
+	} catch {
+		if (!isCurrent()) return;
+		ctx.ui.notify(
+			"Account selected for this session, but could not remember it for new sessions. Select it again from /accounts to retry.",
+			"warning",
+		);
+	}
 }
 
 async function removeAccount(

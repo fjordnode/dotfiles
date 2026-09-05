@@ -12,7 +12,8 @@ def credential(account):
 
 with tempfile.TemporaryDirectory(prefix='pi-accounts-menu-test-') as d:
     root = pathlib.Path(d)
-    (root / 'auth.json').write_text(json.dumps({'openai-codex': credential('one')}))
+    auth = {'openai-codex': credential('one')}
+    (root / 'auth.json').write_text(json.dumps(auth))
     store = {'version': 1, 'providers': {'openai-codex': {'accounts': {'work': credential('one'), 'personal': credential('two')}}}}
     (root / 'pi-accounts.json').write_text(json.dumps(store))
     (root / 'network-fixture.ts').write_text('''export default function () {
@@ -25,13 +26,20 @@ with tempfile.TemporaryDirectory(prefix='pi-accounts-menu-test-') as d:
       };
     }''')
     env = {**os.environ, 'PI_CODING_AGENT_DIR': d, 'CODEX_HOME': d}
-    p = subprocess.Popen([PI, '--no-extensions', '-e', str(root / 'network-fixture.ts'), '-e', str(ROOT), '--mode', 'rpc', '--no-session', '--provider', 'openai-codex', '--model', 'gpt-5.4'], cwd=d, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    events = queue.Queue()
-    def reader():
-        for line in p.stdout:
-            try: events.put(json.loads(line))
-            except ValueError: pass
-    threading.Thread(target=reader, daemon=True).start()
+    def launch():
+        process = subprocess.Popen([PI, '--no-extensions', '-e', str(root / 'network-fixture.ts'), '-e', str(ROOT), '--mode', 'rpc', '--no-session', '--provider', 'openai-codex', '--model', 'gpt-5.4'], cwd=d, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        output = queue.Queue()
+        def reader():
+            for line in process.stdout:
+                try: output.put(json.loads(line))
+                except ValueError: pass
+        threading.Thread(target=reader, daemon=True).start()
+        return process, output
+    def stop(process):
+        process.terminate()
+        try: process.wait(timeout=5)
+        except subprocess.TimeoutExpired: process.kill(); process.wait()
+    p, events = launch()
     def send(obj):
         p.stdin.write(json.dumps(obj)+'\n'); p.stdin.flush()
     def wait(predicate):
@@ -65,8 +73,29 @@ with tempfile.TemporaryDirectory(prefix='pi-accounts-menu-test-') as d:
         again = wait(lambda e: e.get('type') == 'extension_ui_request' and e.get('method') == 'select')
         assert 'OpenAI Codex: personal' in json.dumps(again), 'Named selection not shown after switch'
         send({'type':'extension_ui_response','id':again['id'],'cancelled':True})
-        print('PASS: bundled Pi loads local source; main/switch menus show default identity, active marker, quotas and reset times; switching fake accounts updates the displayed identity.')
+        saved = json.loads((root / 'pi-accounts.json').read_text())
+        assert saved['providers']['openai-codex']['active'] == 'personal', 'Selection not remembered on disk'
+        assert saved['providers']['openai-codex']['accounts'] == store['providers']['openai-codex']['accounts'], 'Credentials changed'
+        stop(p)
+        p, events = launch()
+        send({'id':'fresh-menu','type':'prompt','message':'/accounts'})
+        fresh = wait(lambda e: e.get('type') == 'extension_ui_request' and e.get('method') == 'select')
+        assert 'OpenAI Codex: personal' in json.dumps(fresh), 'Fresh process did not inherit last selection'
+        switch = next(o for o in fresh['options'] if 'Switch OpenAI Codex account' in o)
+        send({'type':'extension_ui_response','id':fresh['id'],'value':switch})
+        picker = wait(lambda e: e.get('type') == 'extension_ui_request' and e.get('method') == 'select')
+        default_option = next(o for o in picker['options'] if o.startswith('default'))
+        send({'type':'extension_ui_response','id':picker['id'],'value':default_option})
+        wait(lambda e: e.get('method') == 'notify' and 'Using default Pi' in e.get('message',''))
+        saved = json.loads((root / 'pi-accounts.json').read_text())
+        assert 'active' not in saved['providers']['openai-codex'], 'Default selection not remembered'
+        stop(p)
+        p, events = launch()
+        send({'id':'default-menu','type':'prompt','message':'/accounts'})
+        fresh = wait(lambda e: e.get('type') == 'extension_ui_request' and e.get('method') == 'select')
+        assert 'default' in json.dumps(fresh) and 'work' in json.dumps(fresh), 'Fresh process did not inherit default login'
+        send({'type':'extension_ui_response','id':fresh['id'],'cancelled':True})
+        assert json.loads((root / 'auth.json').read_text()) == auth, 'Built-in auth changed'
+        print('PASS: menus show identity and quotas; named and default selections survive fresh Pi processes; credentials preserved.')
     finally:
-        p.terminate()
-        try: p.wait(timeout=5)
-        except subprocess.TimeoutExpired: p.kill(); p.wait()
+        stop(p)

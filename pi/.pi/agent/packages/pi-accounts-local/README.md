@@ -1,7 +1,8 @@
 # pi-accounts — local identity and quota display
 
 Based on `@narumitw/pi-accounts` 0.51.0 (MIT). The upstream `src/` is retained;
-local changes are confined to `src/account-menu.ts` and `src/codex-usage.ts`.
+local changes are in `src/account-menu.ts`, `src/codex-usage.ts`, and
+`src/accounts.ts`.
 Pi loads source directly through Jiti. This local package replaces, rather than
 co-loads with, the npm package. Account storage and session-selection format are
 unchanged (`~/.pi/agent/pi-accounts.json`). No account data belongs in this folder.
@@ -40,6 +41,19 @@ in Git. Never copy `auth.json`, `pi-accounts.json`, sessions, `.env` files, or
   in the selector title because RPC choices do not transmit item descriptions.
 - Other providers retain upstream behavior; only OpenAI Codex has quota data.
 
+## Remembered selection
+
+Explicit account switches and successful logins also update the provider's
+`active` default in the existing account store. New Pi sessions inherit that
+last choice, including switching back to the default Pi login. Existing sessions
+keep their own saved selections; startup, resume, and token refresh do not
+change the default for future sessions. Removing the remembered account clears
+that default without replacing another session's newer choice. A failed default
+save warns without preventing the current session from using its selection.
+
+After installing this change, run `/reload` and select the desired account once
+to remember it for future sessions.
+
 ## Usage requests
 
 Opening the menu queries `https://chatgpt.com/backend-api/wham/usage` with the
@@ -68,6 +82,8 @@ Tests use only fake credentials. Unit checks cover parsing, remaining quota,
 reset formatting, errors, concurrency, caching and cancellation. The bundled-Pi
 RPC test verifies menu content, default-account matching and real command-based
 switching of fake accounts in isolated storage with network requests mocked.
+It restarts Pi to verify both named-account and default-login persistence, and
+checks that saved credentials and built-in authentication remain unchanged.
 Live OpenAI responses and a manual TUI session are not covered by that test.
 
 ## Updating / reverting
