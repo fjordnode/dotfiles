@@ -10,6 +10,7 @@
     "npm:pi-subagents@0.58.0",
     "npm:pi-zentui@0.21.0",
     "packages/opencode-official-themes",
+    "packages/pi-accounts-local",
     "npm:@ogulcancelik/pi-codex-compaction@0.1.4",
     "npm:@zaganjade/pi-usage@1.9.2",
     "npm:@narumitw/pi-btw@0.55.4",

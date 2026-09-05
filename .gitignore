@@ -10,6 +10,15 @@
 *.orig
 *.tmp
 
+# Pi credentials and runtime state must never be versioned
+pi/**/node_modules/
+pi/**/auth.json*
+pi/**/pi-accounts.json*
+pi/**/.env
+pi/**/.env.*
+pi/**/sessions/
+pi/**/__pycache__/
+
 # host-specific overrides
 .zshrc.local
 .gitconfig-work
