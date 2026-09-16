@@ -19,6 +19,26 @@ pi/**/.env.*
 pi/**/sessions/
 pi/**/__pycache__/
 
+# Pi generated state and private memory (not portable configuration)
+pi/.pi/web-search-cache/
+pi/.pi/agent/npm/
+pi/.pi/agent/git/
+pi/.pi/agent/sessions/
+pi/.pi/agent/state/
+pi/.pi/agent/artifacts/
+pi/.pi/agent/missions/
+pi/.pi/agent/pi-hermes-memory/
+pi/.pi/agent/projects-memory/
+pi/.pi/agent/session-finder/
+pi/.pi/agent/memory.md
+pi/.pi/agent/models-store.json
+pi/.pi/agent/trust.json
+pi/.pi/agent/provider-failover-state.json
+pi/.pi/agent/run-history.jsonl
+pi/.pi/agent/usage*.json
+pi/.pi/agent/*.log
+pi/.pi/agent/*.sqlite*
+
 # host-specific overrides
 .zshrc.local
 .gitconfig-work

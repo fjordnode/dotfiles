@@ -239,6 +239,27 @@ Select the `pi` application to run Pi's official `curl -fsSL https://pi.dev/inst
 
 The Stow package deliberately uses `--no-folding`, keeping generated files such as `auth.json`, sessions, package checkouts, caches, and logs under the real `~/.pi/agent` directory rather than inside this repository. Pi auto-mode safety controls also remain machine-local and are excluded from Stow/Git. Shared skills are managed by the separate `agents` Stow package for reuse across coding agents.
 
+#### Local Pi customizations
+
+The Pi package also includes `models.json`, the `extensions/codex-auth/` extension,
+and account-import scripts with fake-credential tests. The current settings use
+`codex-auth`; install its CLI separately and authenticate on each host. See
+[the extension README](pi/.pi/agent/extensions/codex-auth/README.md).
+Do not enable `packages/pi-accounts-local` alongside it: the legacy account manager
+can override the selected Codex credentials. Its source and migration scripts are
+retained, but it is not loaded by the current settings.
+
+Keep configuration and source files linked to this checkout with `stow --no-folding`.
+Pi or other tools can replace symlinks with regular files when saving settings;
+check both `git status` and the live links after updates. Preserve and compare
+conflicting files before relinking—do not blindly use `stow --adopt`.
+
+The legacy import script resolves dependencies relative to its real source path.
+If needed, install them with a Pi-compatible Node/npm in
+`~/dotfiles/pi/.pi/agent/packages/pi-accounts-local` using `npm ci --ignore-scripts`.
+Dependencies are ignored by Git. Never run the importer against real credentials
+just to validate an installation; use its `.test.mjs` file instead.
+
 ### Adding New Configs
 
 To add a new program's configuration:

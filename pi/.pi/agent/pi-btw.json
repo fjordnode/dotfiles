@@ -1,5 +1,5 @@
 {
   "model": "openai-codex/gpt-5.6-terra",
-  "thinkingLevel": "medium",
+  "thinkingLevel": "high",
   "rememberThinkingLevelChanges": true
 }

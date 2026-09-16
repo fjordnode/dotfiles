@@ -1,0 +1,37 @@
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, writeFile, readFile, stat, rm, symlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { convert, merge, run } from './import-codex-accounts.mjs';
+const jwt = payload => `fake.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.fake`;
+const snapshot = id => JSON.stringify({ auth_mode: 'chatgpt', tokens: { account_id: id, access_token: jwt({ exp: 1, 'https://api.openai.com/auth': { chatgpt_account_id: id } }), refresh_token: 'fake-refresh', id_token: jwt({ email: 'fake@example.invalid' }) } });
+const one = convert(snapshot('one'));
+assert.equal(one.credential.expires, 1000);
+for (const raw of ['secret-not-json', '{}', snapshot('one').replace('chatgpt', 'api')]) assert.throws(() => convert(raw));
+const initial = { version: 1, providers: { anthropic: { accounts: { work: { access: 'fake-other' } } }, 'openai-codex': { active: 'existing', accounts: { existing: { ...one.credential, refresh: 'fake-newer' } } } } };
+const merged = merge(initial, [one, convert(snapshot('two'))]);
+assert.equal(merged.added, 1);
+assert.deepEqual(merged.next.providers.anthropic, initial.providers.anthropic);
+assert.equal(merged.next.providers['openai-codex'].active, 'existing');
+assert.equal(merged.next.providers['openai-codex'].accounts.existing.refresh, 'fake-newer');
+const root = await mkdtemp(join(tmpdir(), 'pi-import-test-'));
+try {
+ const source = join(root, 'accounts'), target = join(root, 'pi-accounts.json');
+ await mkdir(source);
+ const raw = snapshot('one'); await writeFile(join(source, 'one.auth.json'), raw);
+ const dry = await run({ source, target }); assert.equal(dry.added, 1);
+ await assert.rejects(stat(target), { code: 'ENOENT' });
+ await run({ source, target, apply: true });
+ assert.equal((await stat(target)).mode & 0o777, 0o600);
+ const before = await readFile(target, 'utf8');
+ assert.equal((await run({ source, target, apply: true })).added, 0);
+ assert.equal(await readFile(target, 'utf8'), before);
+ assert.equal(await readFile(join(source, 'one.auth.json'), 'utf8'), raw);
+ await writeFile(join(source, 'bad.auth.json'), 'fake-secret');
+ await assert.rejects(run({ source, target, apply: true }));
+ assert.equal(await readFile(target, 'utf8'), before);
+ await rm(join(source, 'bad.auth.json'));
+ await symlink(target, join(root, 'symlink.json'));
+ await assert.rejects(run({ source, target: join(root, 'symlink.json'), apply: true }));
+ console.log('PASS: conversion, expiry, preservation, duplicate handling, dry-run, private atomic write, unchanged source, invalid-input and symlink rejection.');
+} finally { await rm(root, { recursive: true, force: true }); }

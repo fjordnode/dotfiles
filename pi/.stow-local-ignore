@@ -1,0 +1,16 @@
+# Stow does not read .gitignore. Keep installed dependencies and state local.
+^node_modules$
+^__pycache__$
+^\.git$
+^\.gitignore$
+^auth\.json.*$
+^pi-accounts\.json.*$
+^\.env(?:\..*)?$
+^sessions$
+^.*\.(?:bak|backup|orig|tmp|swp|swo)$
+^.*~$
+^.*\.log$
+^.*\.sqlite.*$
+^/\.pi/web-search-cache(?:/|$)
+^/\.pi/agent/(?:npm|git|state|artifacts|missions|pi-hermes-memory|projects-memory|session-finder)(?:/|$)
+^/\.pi/agent/(?:memory\.md|models-store\.json|trust\.json|provider-failover-state\.json|run-history\.jsonl|usage.*\.json)$
