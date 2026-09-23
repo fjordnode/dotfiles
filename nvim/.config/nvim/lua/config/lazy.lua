@@ -14,11 +14,14 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- load all plugin specs from lua/plugins/*
+-- Load LazyVim's core specs before personal plugin specs. LazyVim relies on
+-- this order when it adds extras from lazyvim.json.
 require("lazy").setup({
-  spec = { { import = "plugins" } },
+  spec = {
+    { "LazyVim/LazyVim", import = "lazyvim.plugins" },
+    { import = "plugins" },
+  },
   -- optional niceties:
   -- install = { colorscheme = { "habamax" } },
   -- checker = { enabled = true },
 })
-
