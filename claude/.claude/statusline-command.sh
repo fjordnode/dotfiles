@@ -5,6 +5,9 @@ BAR_STYLE="blocks"
 input=$(cat || echo '{}')
 cwd=$(echo "$input" | jq -r '.workspace.current_dir')
 model=$(echo "$input" | jq -r '.model.display_name // "Claude"')
+output_style=$(echo "$input" | jq -r '.output_style.name // empty')
+session_added=$(echo "$input" | jq -r '.cost.total_lines_added // 0')
+session_removed=$(echo "$input" | jq -r '.cost.total_lines_removed // 0')
 reported_context_size=$(echo "$input" | jq -r '.context_window.context_window_size // 200000')
 # Claudex advertises the model's nominal 1M window but deliberately compacts at
 # a smaller upstream-safe limit. Prefer that effective window when it is set.
@@ -47,7 +50,6 @@ else
         context_pct=0
     fi
 fi
-cost=$(echo "$input" | jq -r '.cost.total_cost_usd // 0 | . * 100 | floor | . / 100')
 rl_5h=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // 0 | floor')
 rl_5h_reset=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // 0 | floor')
 rl_7d=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // 0 | floor')
@@ -70,9 +72,6 @@ fmt_remaining() {
 }
 rl_5h_ttl=$(fmt_remaining "$rl_5h_reset")
 rl_7d_ttl=$(fmt_remaining "$rl_7d_reset")
-duration_ms=$(echo "$input" | jq -r '.cost.total_duration_ms // 0')
-[[ ! "$duration_ms" =~ ^[0-9]+$ ]] && duration_ms=0
-duration_min=$((duration_ms / 60000))
 
 git_info=""
 if git -c core.useBuiltinFSMonitor=false rev-parse --git-dir > /dev/null 2>&1; then
@@ -122,9 +121,10 @@ fi
 sep="\033[38;2;100;100;100m │\033[0m"
 # Line 1: Model, Context
 printf "\033[38;2;136;192;208m%s\033[0m" "$model"
+[ -n "$output_style" ] && printf "$sep \033[38;2;180;180;180m%s\033[0m" "$output_style"
 
 # Context bar
-if [ "$context_pct" != "0" ] && [ "$context_pct" != "null" ]; then
+if [[ "${context_tokens:-0}" =~ ^[0-9]+$ ]] && [ "${context_tokens:-0}" -gt 0 ]; then
     pct_int=${context_pct%.*}
     [[ ! "$pct_int" =~ ^[0-9]+$ ]] && pct_int=0
     if [ "$pct_int" -lt 50 ]; then
@@ -148,9 +148,20 @@ if [ "$context_pct" != "0" ] && [ "$context_pct" != "null" ]; then
             printf "$sep \033[38;2;140;140;140mctx:\033[0m \033[38;2;%sm%s\033[38;2;60;60;60m%s\033[0m \033[38;2;140;140;140m%s%%\033[0m \033[38;2;100;100;100m(\033[38;2;%sm%sk\033[0m\033[38;2;100;100;100m/\033[38;2;190;190;190m%sk\033[0m\033[38;2;100;100;100m)\033[0m" "$bar_color" "$filled_bar" "$empty_bar" "$pct_int" "$bar_color" "$context_used" "$context_total"
             ;;
         blocks)
-            for ((i=0; i<filled; i++)); do filled_bar+="█"; done
-            for ((i=0; i<empty; i++)); do empty_bar+="░"; done
-            printf "$sep \033[38;2;140;140;140mctx:\033[0m \033[38;2;%sm%s\033[38;2;60;60;60m%s\033[0m \033[38;2;140;140;140m%s%%\033[0m \033[38;2;100;100;100m(\033[38;2;%sm%sk\033[0m\033[38;2;100;100;100m/\033[38;2;190;190;190m%sk\033[0m\033[38;2;100;100;100m)\033[0m" "$bar_color" "$filled_bar" "$empty_bar" "$pct_int" "$bar_color" "$context_used" "$context_total"
+            # 1/8-cell resolution: full blocks, one partial block, then a
+            # dark-background track so the partial cell blends in.
+            partials=(" " "▏" "▎" "▍" "▌" "▋" "▊" "▉")
+            hires_width=15
+            eighths=$(( ${context_tokens:-0} * hires_width * 8 / context_size ))
+            [ "$eighths" -gt $((hires_width * 8)) ] && eighths=$((hires_width * 8))
+            full=$((eighths / 8))
+            rem=$((eighths % 8))
+            for ((i=0; i<full; i++)); do filled_bar+="█"; done
+            cells=$full
+            if [ "$rem" -gt 0 ]; then filled_bar+="${partials[$rem]}"; cells=$((cells + 1)); fi
+            empty_bar=$(printf "%$((hires_width - cells))s")
+            pct_tenths=$(( 1000 * ${context_tokens:-0} / context_size ))
+            printf "$sep \033[38;2;140;140;140mctx:\033[0m \033[48;2;50;50;50m\033[38;2;%sm%s%s\033[0m \033[38;2;140;140;140m%d.%d%%\033[0m \033[38;2;100;100;100m(\033[38;2;%sm%sk\033[0m\033[38;2;100;100;100m/\033[38;2;190;190;190m%sk\033[0m\033[38;2;100;100;100m)\033[0m" "$bar_color" "$filled_bar" "$empty_bar" $((pct_tenths / 10)) $((pct_tenths % 10)) "$bar_color" "$context_used" "$context_total"
             ;;
         smooth)
             filled_bar=$(printf "%${filled}s")
@@ -159,10 +170,6 @@ if [ "$context_pct" != "0" ] && [ "$context_pct" != "null" ]; then
             ;;
     esac
 fi
-
-# Cost and duration
-printf "$sep \033[38;2;140;140;140m$\033[38;2;166;227;161m%s\033[0m" "$cost"
-printf "$sep \033[38;2;140;140;140m󰥔\033[0m \033[38;2;180;180;180m%sm\033[0m" "$duration_min"
 
 # Rate limits
 for rl_entry in "5h:$rl_5h:$rl_5h_ttl" "7d:$rl_7d:$rl_7d_ttl"; do
@@ -182,5 +189,11 @@ done
 
 # Line 2: Git, pwd
 printf "\n"
-printf "\033[38;2;140;140;140mcwd:\033[0m \033[38;2;203;166;247m%s\033[0m" "$cwd"
+cwd_display="$cwd"
+[[ "$cwd" == "$HOME" || "$cwd" == "$HOME/"* ]] && cwd_display="~${cwd#"$HOME"}"
+printf "\033[38;2;140;140;140mcwd:\033[0m \033[38;2;203;166;247m%s\033[0m" "$cwd_display"
 printf "%s" "$git_info"
+# Lines Claude changed this session (git diff above includes your own edits)
+if [ "$session_added" != "0" ] || [ "$session_removed" != "0" ]; then
+    printf "$sep \033[38;2;140;140;140m✎\033[0m \033[38;2;166;227;161m+%s\033[0m \033[38;2;243;139;168m-%s\033[0m" "$session_added" "$session_removed"
+fi
